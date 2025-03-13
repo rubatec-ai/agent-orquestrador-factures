@@ -27,4 +27,4 @@ The project automates an ETL pipeline where each PDF is processed via an API cal
 ## Installation & Setup
 1. **Clone the Repository:**  
    ```bash
-   git clone https://github.com/yourusername/agent-extractor.git
+   git clone https://github.com/yourusername/agent-extractor-factures.git
