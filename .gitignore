@@ -1,0 +1,30 @@
+# Python
+*.py[cod]         # Archivos compilados de Python (.pyc, .pyo, .pyd)
+__pycache__/      # Directorios de caché generados automáticamente por Python
+*.so              # Archivos de extensiones compiladas (especialmente en Linux)
+
+# PyCharm
+.idea/
+/.idea/           # Configuración específica de PyCharm, única para cada usuario
+/.idea/.gitignore
+/.idea/agent-economic.iml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/vcs.xml
+*.iml             # Archivos de configuración de proyectos de IntelliJ/PyCharm
+
+# Virtual environment
+venv/             # Directorios de entornos virtuales creados con Python
+.env/             # Directorios o archivos que contengan variables de entorno sensibles
+
+# Config files
+*.log             # Archivos de log, que suelen ser generados automáticamente
+*.sqlite3         # Archivos de base de datos locales, útiles solo para desarrollo
+
+# OS-specific
+.DS_Store         # Archivos específicos de macOS para directorios (innecesarios)
+Thumbs.db         # Archivos específicos de Windows para directorios (innecesarios)
+
+# API key
+/.env
