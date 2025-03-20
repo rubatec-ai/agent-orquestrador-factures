@@ -53,7 +53,7 @@ def display_answer(answer):
 
 
 # Main
-st.title("Administrative Agent")
+st.title("Orquestador de Factures")
 st.header("Results")
 
 # Load JSON data

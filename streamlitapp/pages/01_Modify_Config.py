@@ -7,7 +7,7 @@ from streamlitapp.utils.utils import add_logo
 
 # Main
 add_logo()
-st.title("Administrative Agent")
+st.title("Orquestador de Factures")
 st.header("Configuration")
 st.info("This page enables parameter configuration", icon="ℹ️")
 
@@ -30,7 +30,7 @@ else:
         "**Files and agent**",
         "**ETL Parameters**",
         "**Agent Parameters**",
-        "**Semantic Search Parameters**"
+        "**Other Parameters**"
     ])
 
     ############################################################################
@@ -48,7 +48,7 @@ else:
         directories["data_directory"] = st.text_input(
             "Data Folder",
             value=directories["data_directory"],
-            help="Carpeta on es troben les dades d'entrada"
+            help="Carpeta on es troben les dades d'entrada a Google Drive"
         )
         directories["logs_directory"] = st.text_input(
             "Logs Folder",
@@ -124,7 +124,7 @@ else:
         st.subheader("Agent Parameters")
         st.write("Paràmetres que controlen el model i el comportament del resum/agent GPT.")
 
-        agent_params = data["ai_summarizer"]["agent"]
+        agent_params = data["invoice_orchestrator"]["agent"]
 
         # GPT Model as a dropdown
         agent_params["model"] = st.selectbox(
@@ -159,7 +159,7 @@ else:
             "Aquests paràmetres defineixen com volem fer la cerca de similitud semàntica "
             "entre els diferents chunks o elements de dades."
         )
-        sem_search = data["ai_summarizer"]["semantic_search"]
+        sem_search = data["invoice_orchestrator"]["semantic_search"]
 
         # All against all
         sem_search["all_against_all"] = st.checkbox(

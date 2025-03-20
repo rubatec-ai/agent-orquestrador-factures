@@ -1,4 +1,4 @@
-from src.ai_summarizer.classes.agent import Agent
+from src.invoice_orchestrator.classes.agent import Agent
 
 import logging
 

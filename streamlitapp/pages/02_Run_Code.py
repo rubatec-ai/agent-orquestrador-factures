@@ -4,11 +4,12 @@ import threading
 import time
 
 # Page title and header
-st.title("Administrative Agent")
-st.header("Semantic Search Generation")
+st.title("Orquestador de Factures")
+st.header("Veure treballs en directe")
 
 # Button that triggers the process
-run_code = st.button("GENERATE RESEARCH")
+run_code = st.button("START")
+run_code = st.button("STOP")
 
 if run_code:
     st.write("**Execution started...**")

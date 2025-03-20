@@ -20,7 +20,7 @@ from streamlitapp.utils.utils import add_logo, apply_custom_styling
 
 apply_custom_styling()
 add_logo()
-st.title("Administrative Agent")
+st.title("Orquestador de Factures")
 st.header("Introduction")
 st.write(
     """

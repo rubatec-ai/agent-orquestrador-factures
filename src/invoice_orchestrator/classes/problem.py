@@ -1,7 +1,7 @@
 from typing import List
 import pandas as pd
-from src.ai_summarizer.classes.scope import Scope
-from src.ai_summarizer.classes.master import Master
+from src.invoice_orchestrator.classes.scope import Scope
+from src.invoice_orchestrator.classes.master import Master
 
 
 class Problem:

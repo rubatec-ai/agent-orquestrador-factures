@@ -1,16 +1,10 @@
 {
     "directories": {
         "main_path": "workspace/agent-admin-pdfs/01_Data",
-        "data_directory": "01_InputData",
         "logs_directory": "04_Logs",
         "transform_export_directory": "02_TransformedData",
         "export_directory": "03_Outputs",
-        "scenario_name": "cosine-similarity"
-    },
-    "data_control": {
-        "filename": "data_control.xlsx",
-        "sources_tab": "sources",
-        "fields_tab": "fields"
+        "scenario_name": "mvp"
     },
     "execution": {
         "run_name": "",
@@ -27,27 +21,20 @@
         "post_process": false
     },
     "etl_param": {
-        "pdf_from_directory": true,
-        "use_debug_scope": false,
-        "use_default_param": false,
-        "use_tables": true,
-        "chunk_tokens": 300,
-        "min_chunk_tokens": 100,
-        "min_paragraph_logging": 50,
-        "embedding_model": "text-embedding-3-large",
-        "embedding_tokens": 1000000
+        "google_drive_path": true
     },
-    "ai_summarizer": {
+    "ai_parser": {
         "agent": {
             "model": "gpt-4o-mini",
             "temperature": 0.1,
-            "max_tokens": 15000
-        },
-        "semantic_search": {
-            "cosine_similarity_filter": false,
-            "similarity_threshold": 0.6,
-            "topn_similar": 15,
-            "all_against_all": false
+            "max_tokens": 1000
+        }
+    },
+    "api_clients": {
+        "param_group": {
+            "param1": "a",
+            "param2": 1,
+            "param3": 2
         }
     }
 }

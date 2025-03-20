@@ -5,14 +5,13 @@ import io
 from datetime import datetime
 
 from src.config import ConfigurationManager
-from src.data_control import DataController
 from src.io_methods import IOHandler
 from src.transform import Transformer
 from src.post_process import PostProcessor
 
-from src.ai_summarizer.classes.problem import Problem
-from src.ai_summarizer.classes.agent import Agent
-from src.ai_summarizer.classes.semantic_search import SemanticSearch
+from src.invoice_orchestrator.classes.problem import Problem
+from src.invoice_orchestrator.classes.agent import Agent
+from src.invoice_orchestrator.classes.semantic_parser import SemanticSearch
 import warnings
 
 
@@ -54,16 +53,6 @@ class MainProcess:
             datefmt="%Y-%m-%d %H:%M:%S"
         )
 
-        # Mute external loggers
-        logging.getLogger("openai._base_client").setLevel(logging.WARNING)
-
-        logging.getLogger("pdfminer.pdfparser").setLevel(logging.WARNING)
-        logging.getLogger("pdfminer.pdfpage").setLevel(logging.WARNING)
-        logging.getLogger("pdfminer.psparser").setLevel(logging.WARNING)
-        logging.getLogger("pdfminer.cmapdb").setLevel(logging.WARNING)
-        logging.getLogger("pdfminer.pdfinterp").setLevel(logging.WARNING)
-        logging.getLogger("pdfminer.pdfdocument").setLevel(logging.WARNING)
-
         logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
         logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
 
@@ -100,8 +89,8 @@ class MainProcess:
 
         Reads input data, applies transformations, and saves the resulting data model.
         """
-        data_controller = DataController(config=self._config, io_handler=self._io, logger=self._logger)
-        data_controller.load_inputs()
+        #data_controller = DataController(config=self._config, io_handler=self._io, logger=self._logger)
+        #data_controller.load_inputs()
 
         transformer = Transformer(config=self._config, io_handler=self._io, logger=self._logger,
                                    clean_inputs=data_controller.processed_inputs)

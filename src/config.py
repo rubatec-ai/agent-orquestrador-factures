@@ -42,15 +42,14 @@ class ConfigurationManager:
         base_path = Path("C:/Users") / getpass.getuser()
 
         self._main_path = base_path / self.get_value("directories.main_path")
-        self._data_directory = self._main_path / self.get_value("directories.data_directory")
-        self._pdf_directory = self._data_directory  / 'pdf'
+
+        # Cuidado aquí s'ha de posar el directori de Google Drive realment on estan les dades.
+        # S'ha de mirar com organitzar-ho
+        #self._data_directory = self._main_path / self.get_value("directories.data_directory")
+
         self._transform_export_directory = self._main_path / self.get_value("directories.transform_export_directory")
         self._logs_directory = self._main_path / self.get_value("directories.logs_directory")
         self._export_directory = self._main_path / self.get_value("directories.export_directory")
-
-        self._data_control_filepath = self._data_directory / self.get_value('data_control.filename')
-        self._data_control_sources = self.get_value('data_control.sources_tab')
-        self._data_control_fields = self.get_value('data_control.fields_tab')
 
         self._run_name = self.get_value('execution.run_name')
         self._run_etl = self.get_value('execution.run_etl')
@@ -63,27 +62,10 @@ class ConfigurationManager:
 
         self._logger_debug = self.get_value('logger.debug')
 
-        self._etl_param_use_pdf_from_directory = self.get_value('etl_param.pdf_from_directory')
-        self._etl_param_use_debug_scope = self.get_value('etl_param.use_debug_scope')
-        self._etl_param_use_default_param = self.get_value('etl_param.use_default_param')
-        self._etl_param_use_tables = self.get_value('etl_param.use_tables')
-        self._etl_param_chunk_tokens = self.get_value('etl_param.chunk_tokens')
-        self._etl_param_min_chunk_tokens = self.get_value('etl_param.min_chunk_tokens')
-        self._etl_param_min_paragraph_logging = self.get_value('etl_param.min_paragraph_logging')
-        self._etl_param_embedding_model = self.get_value('etl_param.embedding_model')
-        self._etl_param_embedding_tokens = self.get_value('etl_param.embedding_tokens')
-
-        self._agent_model = self.get_value('ai_summarizer.agent.model')
+        self._agent_model = self.get_value('invoice_orchestrator.agent.model')
         self._agent_api_key = os.getenv("OPENAI_API_KEY")
-        self._agent_temperature = self.get_value('ai_summarizer.agent.temperature')
-        self._agent_max_tokens = self.get_value('ai_summarizer.agent.max_tokens')
-
-        self._semantic_search_cosine_similarity_filter = self.get_value(
-            'ai_summarizer.semantic_search.cosine_similarity_filter')
-        self._semantic_search_similarity_threshold = self.get_value(
-            'ai_summarizer.semantic_search.similarity_threshold')
-        self._semantic_search_topn_similar = self.get_value('ai_summarizer.semantic_search.topn_similar')
-        self._semantic_search_all_against_all = self.get_value('ai_summarizer.semantic_search.all_against_all')
+        self._agent_temperature = self.get_value('invoice_orchestrator.agent.temperature')
+        self._agent_max_tokens = self.get_value('invoice_orchestrator.agent.max_tokens')
 
         self._streamlit = streamlit
 
@@ -131,14 +113,12 @@ class ConfigurationManager:
     @property
     def main_path(self):
         return self._main_path
-
+    """
     @property
     def data_directory(self):
         return self._data_directory
+    """
 
-    @property
-    def pdf_directory(self):
-        return self._pdf_directory
 
     @property
     def transform_export_directory(self):
@@ -151,18 +131,6 @@ class ConfigurationManager:
     @property
     def export_directory(self):
         return self._export_directory
-
-    @property
-    def data_control_filepath(self):
-        return self._data_control_filepath
-
-    @property
-    def data_control_sources(self):
-        return self._data_control_sources
-
-    @property
-    def data_control_fields(self):
-        return self._data_control_fields
 
     @property
     def scenario_name(self):
@@ -201,42 +169,6 @@ class ConfigurationManager:
         return self._export_post_process
 
     @property
-    def etl_param_use_pdf_from_directory(self):
-        return self._etl_param_use_pdf_from_directory
-
-    @property
-    def etl_param_use_debug_scope(self):
-        return self._etl_param_use_debug_scope
-
-    @property
-    def etl_param_use_default_param(self):
-        return self._etl_param_use_default_param
-
-    @property
-    def etl_param_use_tables(self):
-        return self._etl_param_use_tables
-
-    @property
-    def etl_param_chunk_tokens(self):
-        return self._etl_param_chunk_tokens
-
-    @property
-    def etl_param_min_chunk_tokens(self):
-        return self._etl_param_min_chunk_tokens
-
-    @property
-    def etl_param_min_paragraph_logging(self):
-        return self._etl_param_min_paragraph_logging
-
-    @property
-    def etl_param_embedding_model(self):
-        return self._etl_param_embedding_model
-
-    @property
-    def etl_param_embedding_tokens(self):
-        return self._etl_param_embedding_tokens
-
-    @property
     def agent_model(self):
         return self._agent_model
 
@@ -251,22 +183,6 @@ class ConfigurationManager:
     @property
     def agent_max_tokens(self):
         return self._agent_max_tokens
-
-    @property
-    def semantic_search_cosine_similarity_filter(self):
-        return self._semantic_search_cosine_similarity_filter
-
-    @property
-    def semantic_search_similarity_threshold(self):
-        return self._semantic_search_similarity_threshold
-
-    @property
-    def semantic_search_topn_similar(self):
-        return self._semantic_search_topn_similar
-
-    @property
-    def semantic_search_all_against_all(self):
-        return self._semantic_search_all_against_all
 
     @property
     def streamlit(self):
