@@ -1,3 +1,5 @@
+MAX_RESULTS_GMAIL = 100
+
 # Model pricing constants (as of 2025-01-13)
 
 # Define model costs per token

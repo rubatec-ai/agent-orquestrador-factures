@@ -1,62 +1,53 @@
 from typing import Dict
 import pandas as pd
-import requests
 from logging import Logger
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
 from src.config import ConfigurationManager
 from src.api_extractors.base_extractor import BaseExtractor
 
 
 class GSheetsExtractor(BaseExtractor):
     """
-    Extracts and processes data from the Google Sheets API.
+    Extracts data from a specific Google Sheet using the Sheets API with service account credentials.
 
-    This class fetches raw data from a specific Google Sheet and cleans it into a DataFrame.
+    This class loads credentials from a JSON file, creates a Sheets API client,
+    reads data from a defined range (default "Sheet1!A:Z") of the specified sheet,
+    and returns the data as a pandas DataFrame.
     """
 
     def __init__(self, config: ConfigurationManager, logger: Logger) -> None:
-        self._api_key = config.sheets_api_key  # Example: API key for Google Sheets.
-        self._sheet_id = config.sheet_id  # The ID of the Google Sheet.
-        self._endpoint = "https://sheets.googleapis.com/v4/spreadsheets"
-        self._headers = {"Authorization": f"Bearer {self._api_key}"}
-        logger.name = "SheetsExtractor"
+        self._credentials_path = config.google_credentials_json
+        self._sheets_scopes = config.google_sheets_scopes
+        credentials = service_account.Credentials.from_service_account_file(
+            self._credentials_path, scopes=self._sheets_scopes
+        )
+
+        self._service = build('sheets', 'v4', credentials=credentials)
+        self._sheet_id = config.sheet_id
+        logger.name = "GSheetsExtractor"
         super().__init__(config, logger)
 
-    def get_input_data(self) -> Dict[str, pd.DataFrame]:
+    def read(self) -> pd.DataFrame:
         """
-        Fetches raw data from the Google Sheet.
+        Reads data from the specified Google Sheet and returns it as a DataFrame.
 
-        Returns:
-            Dict[str, pd.DataFrame]: A dictionary containing raw Sheets data, e.g., under the key "sheet_data".
+        The default range is "Sheet1!A:Z", which can be adjusted if needed.
         """
-        # Example: Fetch data from a specific range in the first sheet.
-        url = f"{self._endpoint}/{self._sheet_id}/values/Sheet1!A:Z"
-        response = requests.get(url, headers=self._headers)
-        if response.status_code == 200:
-            json_response = response.json()
-            values = json_response.get("values", [])
-            if values:
-                # Assume the first row contains headers.
-                header = values[0]
-                data = values[1:]
-                df = pd.DataFrame(data, columns=header)
-                return {"sheet_data": df}
-            else:
-                return {"sheet_data": pd.DataFrame()}
-        else:
-            raise Exception(
-                f"Failed to fetch Sheets data. "
-                f"Status Code: {response.status_code}, Response: {response.text}"
-            )
-
-    def clean_input_data(self):
-        """
-        Processes and cleans the raw Sheets data.
-
-        For example, renaming columns or filtering out irrelevant rows.
-        """
-        df = self._raw_inputs.get("sheet_data")
-        if df is not None and not df.empty:
-            # Example: Normalize column names by stripping and converting to lowercase.
+        try:
+            sheet = self._service.spreadsheets()
+            result = sheet.values().get(
+                spreadsheetId=self._sheet_id,
+                range="Sheet1!A:Z"
+            ).execute()
+            values = result.get("values", [])
+            if not values:
+                return pd.DataFrame()
+            header = values[0]
+            data = values[1:]
+            df = pd.DataFrame(data, columns=header)
             df.columns = [col.strip().lower() for col in df.columns]
-            # Additional cleaning logic can be added here.
-            self._clean_inputs["sheet_data"] = df
+            return df
+        except Exception as e:
+            raise Exception(f"Failed to fetch Sheets data: {str(e)}")

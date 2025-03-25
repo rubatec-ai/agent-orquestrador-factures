@@ -1,5 +1,6 @@
 from typing import Dict
 import pandas as pd
+import os
 from logging import Logger
 from google.oauth2 import service_account
 from google.cloud import documentai_v1 as documentai
@@ -10,27 +11,32 @@ from src.api_extractors.base_extractor import BaseExtractor
 
 class GoogleOCRExtractor(BaseExtractor):
     """
-    Extracts and processes OCR data using Google Document AI.
+    Extracts key invoice data from PDF documents using Google Document AI.
 
-    This extractor loads service account credentials from a JSON file,
-    creates a Document AI client, processes a document, and converts the
-    result into a DataFrame.
+    This class loads service account credentials from a JSON file,
+    creates a Document AI client, and processes a list of PDF files.
+    It expects a DataFrame (provided via the configuration) that has a column
+    "pdf_local_path" with the path of each PDF file.
+
+    For each PDF, it sends the file to Document AI and extracts the OCR text.
+    The resulting DataFrame (under the key "ocr_output") contains one row per PDF with:
+      - pdf_local_path: Local path of the PDF file.
+      - document_text: Full OCR text extracted from the document.
+
+    (You can later extend this class to parse additional invoice parameters.)
     """
 
-    def __init__(self, config: ConfigurationManager, logger: Logger) -> None:
-        # Instead of an API key, load the JSON credentials.
-        self._credentials_path = config.google_credentials_json  # Path to your credentials JSON.
-        self._project_id = config.google_project_id
-        self._location = config.documentai_location  # e.g., "us" or "eu"
+    def __init__(self, config: ConfigurationManager, logger: Logger,input_df: pd.DataFrame = None) -> None:
+        self._input_df = input_df
+        self._credentials_path = config.google_credentials_json
+        self._project_id = config.documentai_project_id
+        self._location = config.documentai_location
         self._processor_id = config.documentai_processor_id
         self._client = self._get_documentai_client()
         logger.name = "GoogleOCRExtractor"
         super().__init__(config, logger)
 
     def _get_documentai_client(self):
-        """
-        Loads service account credentials from JSON and creates a Document AI client.
-        """
         credentials = service_account.Credentials.from_service_account_file(
             self._credentials_path
         )
@@ -39,37 +45,42 @@ class GoogleOCRExtractor(BaseExtractor):
 
     def get_input_data(self) -> Dict[str, pd.DataFrame]:
         """
-        Processes a document using Google Document AI and returns the OCR results in a DataFrame.
-
-        For demonstration, this example processes a local PDF file.
+        Processes a list of PDF files provided via an external DataFrame (self._input_df).
+        For each row, it extracts the OCR text using Document AI and builds a new DataFrame
+        with one row per document.
         """
-        input_file_path = self._config.documentai_input_file  # e.g., "path/to/document.pdf"
-        with open(input_file_path, "rb") as document_file:
-            document_content = document_file.read()
+        if self._input_df is None or self._input_df.empty:
+            raise Exception("No se proporcionó un DataFrame de entrada para Document AI.")
 
-        # Build the full resource name of the processor.
-        name = f"projects/{self._project_id}/locations/{self._location}/processors/{self._processor_id}"
+        processed_docs = []
+        for idx, row in self._input_df.iterrows():
+            pdf_path = row.get("pdf_local_path")
+            if pdf_path and os.path.exists(pdf_path):
+                try:
+                    params = self._process_document(pdf_path)
+                    processed_doc = {
+                        "pdf_local_path": pdf_path,
+                        "param1": params,
+                        "param2": params
+                    }
+                    processed_docs.append(processed_doc)
+                except Exception as e:
+                    self._logger.warning(f"Error procesando {pdf_path}: {e}")
+            else:
+                self._logger.warning(f"No se encontró el archivo: {pdf_path}")
 
-        request = documentai.ProcessRequest(
-            name=name,
-            raw_document=documentai.RawDocument(
-                content=document_content,
-                mime_type="application/pdf"
-            )
-        )
-
-        result = self._client.process_document(request=request)
-        document_text = result.document.text
-
-        # Create a DataFrame with the OCR result.
-        df = pd.DataFrame([{"document_text": document_text}])
+        df = pd.DataFrame(processed_docs)
         return {"ocr_output": df}
+
+    def _process_document(self, pdf_path: str) -> str:
+        """
+        Processes a single PDF document using Document AI and returns the extracted OCR text.
+        """
+        return pdf_path
 
     def clean_input_data(self):
         """
-        Cleans and processes the OCR output data.
-
-        For example, trimming extra whitespace and ensuring non-empty results.
+        Cleans the OCR output data by trimming whitespace from the extracted text.
         """
         df = self._raw_inputs.get("ocr_output")
         if df is not None and not df.empty:

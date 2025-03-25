@@ -1,41 +1,67 @@
 {
-    "directories": {
-        "main_path": "workspace/agent-orquestrador-factures/01_Data",
-        "logs_directory": "04_Logs",
-        "transform_export_directory": "02_TransformedData",
-        "export_directory": "03_Outputs",
-        "scenario_name": "mvp"
+  "directories": {
+    "main_path": "workspace/agent-orquestrador-factures/01_Data",
+    "logs_directory": "04_Logs",
+    "transform_export_directory": "02_TransformedData",
+    "export_directory": "03_Outputs",
+    "scenario_name": "mvp"
+  },
+  "execution": {
+    "run_name": "",
+    "run_etl": true,
+    "run_solver": true,
+    "run_post_process": false
+  },
+  "logger": {
+    "debug": true
+  },
+  "export": {
+    "etl": true,
+    "solution": true,
+    "post_process": true
+  },
+  "etl": {
+    "google": {
+      "credentials_json": "path/to/service_account.json",
+      "drive": {
+        "scopes": [
+          "https://www.googleapis.com/auth/drive.file"
+        ],
+        "drive_folder_id": "ID_DE_LA_CARPETA_EN_DRIVE"
+      },
+      "gmail": {
+        "scopes": [
+          "https://www.googleapis.com/auth/gmail.readonly"
+        ],
+        "save_pdf_attachments_folder": "C:/temp/gmail_pdfs",
+        "upload_pdfs_to_drive": true,
+        "gmail_user_email": "factures@rubatec.cat",
+        "start_date": "2025-03-01",
+        "label": "factura"
+      },
+      "documentai": {
+        "project_id": "OrquestradorFactures",
+        "location": "eu",
+        "processor_id": "your-document-ai-processor-id",
+        "input_file": "path/to/document.pdf"
+      },
+      "sheets": {
+        "scopes": [
+          "https://www.googleapis.com/auth/spreadsheets.readonly"
+        ],
+        "sheet_id": "your-google-sheet-id"
+      }
     },
-    "execution": {
-        "run_name": "",
-        "run_etl": true,
-        "run_solver": true,
-        "run_post_process": false
-    },
-    "logger": {
-        "debug": true
-    },
-    "export": {
-        "etl": false,
-        "solution": true,
-        "post_process": false
-    },
-    "etl_param": {
-        "drive_api_key": 1235,
-        "google_drive_path": true
-    },
-    "ai_parser": {
-        "agent": {
-            "model": "gpt-4o-mini",
-            "temperature": 0.1,
-            "max_tokens": 1000
-        }
-    },
-    "api_clients": {
-        "param_group": {
-            "param1": "a",
-            "param2": 1,
-            "param3": 2
-        }
+    "sage": {
+      "api_key": "YOUR_SAGE_API_KEY",
+      "endpoint": "https://api.sage.com"
     }
+  },
+  "ai_parser": {
+    "agent": {
+      "model": "gpt-4o-mini",
+      "temperature": 0.1,
+      "max_tokens": 1000
+    }
+  }
 }

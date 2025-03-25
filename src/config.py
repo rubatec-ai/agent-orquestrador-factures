@@ -14,39 +14,54 @@ class ConfigurationManager:
 
     Attributes:
         _config (dict): Execution configuration.
-        _main_path (str): Path to the main directory for data.
-        _data_directory (str): Path to the data directory.
-        _logs_directory (str): Path to the logs directory.
-        _export_directory (str): Path to the export directory.
-        _transform_export_directory (str): Path to the transformed data directory.
-        _data_control_filepath (str): Path to the data control file.
-        _data_control_sources (str): Tab name for data control sources.
-        _data_control_fields (str): Tab name for data control fields.
+        _main_path (Path): Main directory path.
+        _logs_directory (Path): Logs directory path.
+        _transform_export_directory (Path): Transformed data directory path.
+        _export_directory (Path): Output directory path.
+        _timestamp (str): Timestamp when the configuration was loaded.
+        _run_name (str): Name of the run.
+        _run_etl (bool): Flag to run ETL.
+        _run_solver (bool): Flag to run solver.
+        _run_post_process (bool): Flag to run post process.
+        _export_etl (bool): Flag to export ETL.
+        _export_solution (bool): Flag to export solution.
+        _export_post_process (bool): Flag to export post process.
+        _logger_debug (bool): Debug flag for logging.
+        _agent_model (str): Model for the AI parser.
+        _agent_api_key (str): API key for the agent.
+        _agent_temperature (float): Temperature for the AI parser.
+        _agent_max_tokens (int): Max tokens for the AI parser.
+        _google_credentials_json (str): Path to the Google service account JSON.
+        _google_drive_scopes (list): Scopes for Google Drive.
+        _google_gmail_scopes (list): Scopes for Gmail.
+        _gmail_user_email (str): Gmail user email for delegation.
+        _documentai_project_id (str): Google project ID for Document AI.
+        _documentai_location (str): Location for Document AI.
+        _documentai_processor_id (str): Processor ID for Document AI.
+        _documentai_input_file (str): Path to the input file for Document AI.
+        _google_sheets_scopes (list): Scopes for Google Sheets.
+        _sheet_id (str): Google Sheet ID.
+        _sage_api_key (str): API key for Sage.
+        _sage_endpoint (str): Endpoint URL for Sage.
+        _api_clients (dict): Additional API clients parameters.
+        _streamlit (bool): Flag indicating if se usa streamlit.
+        _scenario_name (str): Scenario name with timestamp.
     """
 
     def __init__(self, streamlit: bool = False):
-        # Load environment variables from .env
         load_dotenv()
 
         root_path = self.get_project_root()
-
         if streamlit:
             self.config_filepath = st.session_state["json_file_path"]
         else:
             self.config_filepath = os.path.join(root_path, 'config/config.json')
 
         self._timestamp = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
-
         self._config = self.read_config()
 
         base_path = Path("C:/Users") / getpass.getuser()
-
         self._main_path = base_path / self.get_value("directories.main_path")
-
-        # Cuidado aquí s'ha de posar el directori de Google Drive realment on estan les dades.
-        # S'ha de mirar com organitzar-ho
-        #self._data_directory = self._main_path / self.get_value("directories.data_directory")
-
         self._transform_export_directory = self._main_path / self.get_value("directories.transform_export_directory")
         self._logs_directory = self._main_path / self.get_value("directories.logs_directory")
         self._export_directory = self._main_path / self.get_value("directories.export_directory")
@@ -62,30 +77,37 @@ class ConfigurationManager:
 
         self._logger_debug = self.get_value('logger.debug')
 
-        self._agent_model = self.get_value('invoice_orchestrator.agent.model')
+        # Parámetros para el ai_parser
+        self._agent_model = self.get_value('ai_parser.agent.model')
         self._agent_api_key = os.getenv("OPENAI_API_KEY")
-        self._agent_temperature = self.get_value('invoice_orchestrator.agent.temperature')
-        self._agent_max_tokens = self.get_value('invoice_orchestrator.agent.max_tokens')
+        self._agent_temperature = self.get_value('ai_parser.agent.temperature')
+        self._agent_max_tokens = self.get_value('ai_parser.agent.max_tokens')
+
+        # Parámetros ETL
+        self._google_credentials_json = self.get_value("etl.google.credentials_json")
+        self._google_drive_scopes = self.get_value("etl.google.drive.scopes")
+        self._google_drive_folder_id = self.get_value("etl.google.drive_folder_id")
+        self._google_gmail_scopes = self.get_value("etl.google.gmail.scopes")
+        self._gmail_user_email = self.get_value("etl.google.gmail.gmail_user_email")
+        self._documentai_project_id = self.get_value("etl.google.documentai.project_id")
+        self._documentai_location = self.get_value("etl.google.documentai.location")
+        self._documentai_processor_id = self.get_value("etl.google.documentai.processor_id")
+        self._documentai_input_file = self.get_value("etl.google.documentai.input_file")
+        self._google_sheets_scopes = self.get_value("etl.google.sheets.scopes")
+        self._sheet_id = self.get_value("etl.google.sheets.sheet_id")
+        self._sage_api_key = self.get_value("etl.sage.api_key")
+        self._sage_endpoint = self.get_value("etl.sage.endpoint")
+
+        self._api_clients = self.get_value("api_clients.param_group")
 
         self._streamlit = streamlit
-
         self._scenario_name = f"{self.get_value('directories.scenario_name')}_{self._timestamp}"
 
     @staticmethod
     def get_project_root() -> Path:
-        """Retrieve the root directory of the project."""
         return Path(__file__).parent.parent
 
     def get_value(self, key: str) -> Any:
-        """
-        Retrieve a value from the configuration using dot notation.
-
-        Args:
-            key (str): Dot-separated key to access nested configuration values.
-
-        Returns:
-            Any: The value from the configuration file, or None if not found.
-        """
         keys = key.split('.')
         data = self._config
         for k in keys:
@@ -96,12 +118,6 @@ class ConfigurationManager:
         return data
 
     def read_config(self) -> Dict[str, Any]:
-        """
-        Read a configuration file containing configuration parameters.
-
-        Returns:
-            dict: configuration
-        """
         try:
             with open(self.config_filepath, 'r') as config_file:
                 return json.load(config_file)
@@ -109,16 +125,9 @@ class ConfigurationManager:
             print("Config file not found. Make sure it exists at the specified path.")
             return {}
 
-    # Properties for accessing configuration attributes
     @property
     def main_path(self):
         return self._main_path
-    """
-    @property
-    def data_directory(self):
-        return self._data_directory
-    """
-
 
     @property
     def transform_export_directory(self):
@@ -183,6 +192,62 @@ class ConfigurationManager:
     @property
     def agent_max_tokens(self):
         return self._agent_max_tokens
+
+    @property
+    def google_credentials_json(self):
+        return self._google_credentials_json
+
+    @property
+    def google_drive_scopes(self):
+        return self._google_drive_scopes
+
+    @property
+    def google_drive_folder_id(self):
+        return self._google_drive_folder_id
+
+    @property
+    def google_gmail_scopes(self):
+        return self._google_gmail_scopes
+
+    @property
+    def gmail_user_email(self):
+        return self._gmail_user_email
+
+    @property
+    def documentai_project_id(self):
+        return self._documentai_project_id
+
+    @property
+    def documentai_location(self):
+        return self._documentai_location
+
+    @property
+    def documentai_processor_id(self):
+        return self._documentai_processor_id
+
+    @property
+    def documentai_input_file(self):
+        return self._documentai_input_file
+
+    @property
+    def google_sheets_scopes(self):
+        return self._google_sheets_scopes
+
+    @property
+    def sheet_id(self):
+        return self._sheet_id
+
+    @property
+    def sage_api_key(self):
+        return self._sage_api_key
+
+    @property
+    def sage_endpoint(self):
+        return self._sage_endpoint
+
+    @property
+    def api_clients(self):
+        return self._api_clients
 
     @property
     def streamlit(self):
