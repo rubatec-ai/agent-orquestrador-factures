@@ -1,6 +1,6 @@
 {
     "directories": {
-        "main_path": "workspace/agent-admin-pdfs/01_Data",
+        "main_path": "workspace/agent-orquestrador-factures/01_Data",
         "logs_directory": "04_Logs",
         "transform_export_directory": "02_TransformedData",
         "export_directory": "03_Outputs",
@@ -21,6 +21,7 @@
         "post_process": false
     },
     "etl_param": {
+        "drive_api_key": 1235,
         "google_drive_path": true
     },
     "ai_parser": {
