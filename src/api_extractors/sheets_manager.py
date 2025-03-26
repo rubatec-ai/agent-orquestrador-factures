@@ -47,22 +47,27 @@ class GoogleSheetsManager(BaseExtractor):
         self._default_sheet_name = "Hoja 1"
 
         logger.name = "GoogleSheetsManager"
+        logger.info('Starting Google Sheets Manager..')
         super().__init__(config, logger)
 
     def get_input_data(self) -> Dict[str, pd.DataFrame]:
-        """
-        Read data from Google Sheets and store in raw_inputs.
-
-        Returns:
-            Dictionary with 'sheets_data' key containing the DataFrame
-
-        Raises:
-            Exception: If any error occurs during the read operation
-        """
         try:
             df = self.read(sheet_name=self._sheet_name)
-            df.rename(columns=MAPPING_RENAME_COL_REGISTRO, inplace=True)
-            return {"master_register": df}
+            rename_dict = {old: new for old, (new, _) in MAPPING_RENAME_COL_REGISTRO.items()}
+            type_dict = {new: dtype for _, (new, dtype) in MAPPING_RENAME_COL_REGISTRO.items()}
+            df.rename(columns=rename_dict, inplace=True)
+
+            for col, dtype in type_dict.items():
+                if col in df.columns:
+                    if dtype == 'date':
+                        df[col] = pd.to_datetime(df[col], errors='coerce').dt.date
+                    elif dtype == 'datetime':
+                        df[col] = pd.to_datetime(df[col], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        df[col] = df[col].astype(dtype, errors='ignore')
+
+            return {"register": df}
+
         except Exception as e:
             self._logger.error(f"Error in get_input_data: {str(e)}")
             raise
@@ -76,7 +81,7 @@ class GoogleSheetsManager(BaseExtractor):
         - Strip whitespace from string values
         - Convert column names to lowercase
         """
-        df = self._raw_inputs.get("master_register")
+        df = self._raw_inputs.get("register")
         if df is not None and not df.empty:
             # Basic cleaning
             df = df.dropna(how='all')
@@ -85,7 +90,7 @@ class GoogleSheetsManager(BaseExtractor):
             # Column name normalization
             df.columns = [col.strip().lower() for col in df.columns]
 
-            self._clean_inputs["master_register"] = df
+            self._clean_inputs["register"] = df
             self._logger.info("Sheet data cleaned successfully")
 
     def read(self, sheet_name: Optional[str] = "registro") -> pd.DataFrame:

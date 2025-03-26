@@ -6,10 +6,9 @@ import pandas as pd
 from src.config import ConfigurationManager
 from src.io_methods import IOHandler
 from src.transformations.transform_default import transform_default
-from src.transformations.transform_drive import transform_drive
-from src.transformations.transform_gmail import transform_gmail
-from src.transformations.transform_sage import transform_sage
-from src.transformations.transform_sheets import transform_sheets
+from src.transformations.transform_files import transform_files
+from src.transformations.transform_invoices import transform_invoices
+from src.transformations.transform_register import transform_register
 
 
 class Transformer:
@@ -32,10 +31,9 @@ class Transformer:
         self._logger.name = 'Transformer'
         self._clean_inputs = clean_inputs
         self._transformations = {
-            'sage': transform_sage,
-            'drive': transform_drive,
-            'gmail' : transform_gmail,
-            'sheets' : transform_sheets
+            'invoices': transform_invoices,
+            'files': transform_files,
+            'register' : transform_register
         }
         self._data_model = {}
 

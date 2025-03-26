@@ -15,23 +15,21 @@ COLUMNS_REGISTRO = [
 ]
 
 MAPPING_RENAME_COL_REGISTRO = {
-    'Num Factura Proveedor': 'fr_proveedor',
-    'Proveedor': 'proveedor',
-    'Fecha Recepción': 'data_recepcio',
-    'Canal - SIE': 'canal_sie',
-    'Base': 'base',
-    'IVA [%]': 'iva[%]',
-    'IVA [€]': 'iva[€]',
-    'Total': 'total',
-    'Sage - Serie': 'serie',
-    'Sage - Num Factura': 'fr',
-    'Num Factura RUBATEC': 'fr_rubatec',
-    'Fecha Vencimento': 'data_venciment',
-    'Ruta': 'ruta_pdf',
-    'Marca Temporal OCR': 'marca_temporal_ocr'
+    'Num Factura Proveedor': ('fr_proveedor', str),
+    'Proveedor': ('proveedor', str),
+    'Fecha Recepción': ('data_recepcio', 'date'),
+    'Canal - SIE': ('canal_sie', str),
+    'Base': ('base', float),
+    'IVA [%]': ('iva[%]', float),
+    'IVA [€]': ('iva[€]', float),
+    'Total': ('total', float),
+    'Sage - Serie': ('serie', str),
+    'Sage - Num Factura': ('fr', str),
+    'Num Factura RUBATEC': ('fr_rubatec', str),
+    'Fecha Vencimento': ('data_venciment', 'date'),
+    'Ruta': ('ruta_pdf', str),
+    'Marca Temporal OCR': ('marca_temporal_ocr', 'datetime')
 }
-
-
 
 # Model pricing constants (as of 2025-01-13)
 

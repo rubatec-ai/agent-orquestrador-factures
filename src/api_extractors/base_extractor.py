@@ -74,3 +74,7 @@ class BaseExtractor:
             Dict[str, pd.DataFrame]: A dictionary containing cleaned DataFrames.
         """
         return self._clean_inputs
+
+    def extract(self):
+        self._raw_inputs = self.get_input_data()
+        self.clean_input_data()

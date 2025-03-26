@@ -13,7 +13,7 @@ import warnings
 
 # Import your API clients
 from src.api_extractors.gmail_extractor import GmailExtractor
-from src.api_extractors.drive_extractor import DriveManager
+from src.api_extractors.drive_manager import DriveManager
 from src.api_extractors.ocr_extractor import  GoogleOCRExtractor
 from src.api_extractors.sage_extractor import SageExtractor
 from src.api_extractors.sheets_manager import GoogleSheetsManager
@@ -36,7 +36,7 @@ class MainProcess:
         self._io = IOHandler(self._config)
         self._logger, self._log_stream = self._initialize_logger(streamlit)
 
-        self._clean_inputs = None
+        self._clean_inputs = {}
         self._data_model = None
         self._problem = None
 
@@ -99,13 +99,16 @@ class MainProcess:
         # --------------------------------------------------------------------
         # 1) Instantiate the necessary clients to extract current data
         # --------------------------------------------------------------------
-        gmail_extractor = GmailExtractor(config=self._config, logger=self._logger)
-        drive_extractor = DriveManager(config=self._config, logger=self._logger)
-        sheets_extractor = GoogleSheetsManager(config=self._config, logger=self._logger)
+        extractors = {
+            'gmail': GmailExtractor(config=self._config, logger=self._logger),
+            'drive': DriveManager(config=self._config, logger=self._logger),
+            'sheets': GoogleSheetsManager(config=self._config, logger=self._logger),
+        }
 
-        self._clean_inputs['gmail'] = gmail_extractor.clean_inputs['invoices']
-        self._clean_inputs['drive'] = drive_extractor.clean_inputs['files']
-        self._clean_inputs['sheets'] = sheets_extractor.clean_inputs['master_register']
+        for name, extractor in extractors.items():
+            extractor.extract()
+            for key, df in extractor.clean_inputs.items():
+                self._clean_inputs[key] = df
 
         # --------------------------------------------------------------------
         # 2) Transform the extracted data

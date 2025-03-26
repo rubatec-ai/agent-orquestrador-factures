@@ -35,6 +35,7 @@ class DriveManager(BaseExtractor):
         # Folder ID base donde se realizarán las operaciones
         self._folder_id = config.google_drive_folder_id
         logger.name = "DriveManager"
+        logger.info('Starting Drive Manager..')
         super().__init__(config, logger)
 
     def _list_files_recursive(self, folder_id: str, current_path: str = "") -> List[dict]:
@@ -47,7 +48,7 @@ class DriveManager(BaseExtractor):
         response = self._service.files().list(
             q=query,
             pageSize=PAGE_SIZE_DRIVE,
-            fields="nextPageToken, files(id, name, mimeType, createdTime, modifiedTime, size, webViewLink)"
+            fields="nextPageToken, files(id, name, mimeType, createdTime, modifiedTime, size, webViewLink, md5Checksum)"
         ).execute()
         items = response.get("files", [])
         for item in items:
@@ -65,7 +66,7 @@ class DriveManager(BaseExtractor):
         """
         Busca de forma recursiva dentro del folder base (y sus subfolders) todos los archivos PDF.
         Genera un DataFrame con la siguiente información:
-          - file_id, file_name, created_time, modified_time, file_size, web_view_link, relative_path.
+          - file_id, filename, created_time, modified_time, file_size, web_view_link, relative_path.
         """
         try:
             self._logger.debug(f"Recorriendo recursivamente el folder base: {self._folder_id}")
@@ -85,7 +86,7 @@ class DriveManager(BaseExtractor):
         if df is not None and not df.empty:
             df = df.rename(columns={
                 "id": "file_id",
-                "name": "file_name",
+                "name": "filename",
                 "createdTime": "created_time",
                 "modifiedTime": "modified_time",
                 "size": "file_size",
@@ -157,9 +158,9 @@ class DriveManager(BaseExtractor):
         else:
             target_folder_id = self._folder_id
 
-        file_name = os.path.basename(file_path)
+        filename = os.path.basename(file_path)
         file_metadata = {
-            'name': file_name,
+            'name': filename,
             'parents': [target_folder_id]
         }
         media = MediaFileUpload(file_path, mimetype='application/pdf')

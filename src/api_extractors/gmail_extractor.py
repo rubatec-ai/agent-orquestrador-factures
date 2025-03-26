@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 import pandas as pd
 import base64
 import os
@@ -13,6 +13,8 @@ from src.api_extractors.base_extractor import BaseExtractor
 from src.utils.constants import MAX_RESULTS_GMAIL
 from email.utils import parsedate_to_datetime
 import pytz
+
+from src.utils.utils import compute_hash
 
 
 class GmailExtractor(BaseExtractor):
@@ -46,6 +48,7 @@ class GmailExtractor(BaseExtractor):
         self._label = config.gmail_label  # e.g., "INBOX"
 
         logger.name = "GmailExtractor"
+        logger.info('Starting Gmail Extractor..')
         super().__init__(config, logger)
 
     def _get_oauth_credentials(self):
@@ -141,7 +144,7 @@ class GmailExtractor(BaseExtractor):
                             filename = part.get("filename", "")
                             if filename and filename.lower().endswith(".pdf"):
                                 attachment_id = part.get("body", {}).get("attachmentId", "")
-                                local_path = self._download_pdf_attachment(msg_id, attachment_id, filename)
+                                local_path, hash = self._download_pdf_attachment(msg_id, attachment_id, filename)
                                 attachments_data.append({
                                     "message_id": msg_id,
                                     "thread_id": thread_id,
@@ -150,7 +153,8 @@ class GmailExtractor(BaseExtractor):
                                     "sender": sender,
                                     "attachment_id": attachment_id,
                                     "filename": filename,
-                                    "pdf_local_path": local_path
+                                    "pdf_local_path": local_path,
+                                    "hash": hash
                                 })
                     # En caso de que no exista "parts", se puede tener el cuerpo directo y sin adjuntos.
 
@@ -202,7 +206,7 @@ class GmailExtractor(BaseExtractor):
         payload = msg.get("payload", {})
         return extract_text(payload)
 
-    def _download_pdf_attachment(self, msg_id: str, attachment_id: str, filename: str) -> Optional[str]:
+    def _download_pdf_attachment(self, msg_id: str, attachment_id: str, filename: str) -> Optional[Tuple[str,str]]:
         """
         Descarga el adjunto PDF usando la API de Gmail y lo guarda en la carpeta temporal.
         Retorna la ruta local del archivo.
@@ -216,6 +220,8 @@ class GmailExtractor(BaseExtractor):
             ).execute()
             data = attachment.get('data', '')
             pdf_content = base64.urlsafe_b64decode(data.encode("UTF-8"))
+            pdf_hash = compute_hash(pdf_content, 'md5')
+            self._logger.debug(f"Hash del PDF {filename}: {pdf_hash}")
 
             # Crear la carpeta si no existe
             os.makedirs(self._save_pdf_folder, exist_ok=True)
@@ -225,7 +231,7 @@ class GmailExtractor(BaseExtractor):
             with open(local_path, "wb") as f:
                 f.write(pdf_content)
 
-            return local_path
+            return local_path, pdf_hash
         except Exception as e:
             self._logger.warning(f"Error downloading attachment {attachment_id} for message {msg_id}: {e}")
             return None
