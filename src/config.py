@@ -62,6 +62,7 @@ class ConfigurationManager:
 
         base_path = Path("C:/Users") / getpass.getuser()
         self._main_path = base_path / self.get_value("directories.main_path")
+        self._data_directory = self._main_path / self.get_value("directories.data_directory")
         self._transform_export_directory = self._main_path / self.get_value("directories.transform_export_directory")
         self._logs_directory = self._main_path / self.get_value("directories.logs_directory")
         self._export_directory = self._main_path / self.get_value("directories.export_directory")
@@ -84,17 +85,23 @@ class ConfigurationManager:
         self._agent_max_tokens = self.get_value('ai_parser.agent.max_tokens')
 
         # Parámetros ETL
-        self._google_credentials_json = self.get_value("etl.google.credentials_json")
+        self._google_credentials_json= self._data_directory /self.get_value("etl.google.credentials_json")
         self._google_drive_scopes = self.get_value("etl.google.drive.scopes")
-        self._google_drive_folder_id = self.get_value("etl.google.drive_folder_id")
+        self._google_drive_folder_id = self.get_value("etl.google.drive.drive_folder_id")
+        self._google_drive_processed_folder_id = self.get_value("etl.google.drive.processed_drive_folder_id")
         self._google_gmail_scopes = self.get_value("etl.google.gmail.scopes")
+        self._google_gmail_client_secret_file =self._data_directory / self.get_value("etl.google.gmail.client_secret_file")
+        self._google_gmail_token_file = self._data_directory / self.get_value("etl.google.gmail.gmail_token_file")
+        self._google_gmail_save_pdf_attachments_folder = self.get_value("etl.google.gmail.save_pdf_attachments_folder")
+        self._google_gmail_start_date = self.get_value("etl.google.gmail.start_date")
+        self._google_gmail_label = self.get_value("etl.google.gmail.label")
         self._gmail_user_email = self.get_value("etl.google.gmail.gmail_user_email")
         self._documentai_project_id = self.get_value("etl.google.documentai.project_id")
         self._documentai_location = self.get_value("etl.google.documentai.location")
         self._documentai_processor_id = self.get_value("etl.google.documentai.processor_id")
-        self._documentai_input_file = self.get_value("etl.google.documentai.input_file")
         self._google_sheets_scopes = self.get_value("etl.google.sheets.scopes")
         self._sheet_id = self.get_value("etl.google.sheets.sheet_id")
+        self._sheet_name = self.get_value("etl.google.sheets.sheet_name")
         self._sage_api_key = self.get_value("etl.sage.api_key")
         self._sage_endpoint = self.get_value("etl.sage.endpoint")
 
@@ -128,6 +135,10 @@ class ConfigurationManager:
     @property
     def main_path(self):
         return self._main_path
+
+    @property
+    def data_directory(self):
+        return self._data_directory
 
     @property
     def transform_export_directory(self):
@@ -206,8 +217,32 @@ class ConfigurationManager:
         return self._google_drive_folder_id
 
     @property
+    def google_drive_processed_folder_id(self):
+        return self._google_drive_processed_folder_id
+
+    @property
     def google_gmail_scopes(self):
         return self._google_gmail_scopes
+
+    @property
+    def google_gmail_client_secret_file(self):
+        return self._google_gmail_client_secret_file
+
+    @property
+    def google_gmail_token_file(self):
+        return self._google_gmail_token_file
+
+    @property
+    def gmail_save_pdf_attachments_folder(self):
+        return self._google_gmail_save_pdf_attachments_folder
+
+    @property
+    def gmail_start_date(self):
+        return self._google_gmail_start_date
+
+    @property
+    def gmail_label(self):
+        return self._google_gmail_label
 
     @property
     def gmail_user_email(self):
@@ -226,16 +261,16 @@ class ConfigurationManager:
         return self._documentai_processor_id
 
     @property
-    def documentai_input_file(self):
-        return self._documentai_input_file
-
-    @property
     def google_sheets_scopes(self):
         return self._google_sheets_scopes
 
     @property
     def sheet_id(self):
         return self._sheet_id
+
+    @property
+    def sheet_name(self):
+        return self._sheet_name
 
     @property
     def sage_api_key(self):

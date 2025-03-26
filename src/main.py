@@ -9,15 +9,14 @@ from src.io_methods import IOHandler
 from src.transform import Transformer
 from src.post_process import PostProcessor
 
-from src.invoice_orchestrator.classes.problem import Problem
 import warnings
 
 # Import your API clients
 from src.api_extractors.gmail_extractor import GmailExtractor
-from src.api_extractors.drive_extractor import DriveExtractor
+from src.api_extractors.drive_extractor import DriveManager
 from src.api_extractors.ocr_extractor import  GoogleOCRExtractor
 from src.api_extractors.sage_extractor import SageExtractor
-from src.api_extractors.sheets_extractor import GSheetsExtractor
+from src.api_extractors.sheets_manager import GoogleSheetsManager
 
 
 class MainProcess:
@@ -37,6 +36,7 @@ class MainProcess:
         self._io = IOHandler(self._config)
         self._logger, self._log_stream = self._initialize_logger(streamlit)
 
+        self._clean_inputs = None
         self._data_model = None
         self._problem = None
 
@@ -97,55 +97,28 @@ class MainProcess:
         3) Load or export the resulting data model if configured.
         """
         # --------------------------------------------------------------------
-        # 1) Instantiate the necessary clients
+        # 1) Instantiate the necessary clients to extract current data
         # --------------------------------------------------------------------
-        gmail_extractor = GmailExtractor(config=self._config, logger=self._logger, clean_inputs=True)
-        drive_extractor = DriveExtractor(config=self._config, logger=self._logger, clean_inputs=True)
-        ocr_extractor = GoogleOCRExtractor(config=self._config, logger=self._logger, clean_inputs=True)
-        sage_extractor = SageExtractor(config=self._config, logger=self._logger, clean_inputs=True)
-        sheets_extractor = GSheetsExtractor(config=self._config, logger=self._logger, clean_inputs=True)
+        gmail_extractor = GmailExtractor(config=self._config, logger=self._logger)
+        drive_extractor = DriveManager(config=self._config, logger=self._logger)
+        sheets_extractor = GoogleSheetsManager(config=self._config, logger=self._logger)
 
-        gmail_data = gmail_extractor.clean_inputs
-        drive_data = drive_extractor.clean_inputs
-        ocr_data = ocr_extractor.clean_inputs
-        sage_data = sage_extractor.clean_inputs
-        sheets_data = sheets_extractor.clean_inputs
+        self._clean_inputs['gmail'] = gmail_extractor.clean_inputs['invoices']
+        self._clean_inputs['drive'] = drive_extractor.clean_inputs['files']
+        self._clean_inputs['sheets'] = sheets_extractor.clean_inputs['master_register']
 
         # --------------------------------------------------------------------
-        # 2) Extract data using each client
-        #    (Method names below are placeholders; adjust to match your code.)
-        # --------------------------------------------------------------------
-        self._logger.info("Extracting PDF attachments from Gmail...")
-        pdf_attachments = gmail_extractor.get_pdf_attachments()
-
-        self._logger.info("Extracting PDF files from Google Drive...")
-        drive_pdfs = drive_extractor.list_pdfs_in_folder(folder_id=self._config.drive_folder_id)
-
-        self._logger.info("Running OCR on extracted PDFs...")
-        ocr_data = ocr_extractor.parse_pdfs(pdf_attachments + drive_pdfs)
-
-        self._logger.info("Retrieving invoice data from Sage...")
-        sage_invoices = sage_extractor.get_invoices()
-
-        self._logger.info("Reading additional info from Google Sheets...")
-        sheets_data = sheets_extractor.read_data(sheet_id=self._config.gsheet_id)
-
-        # --------------------------------------------------------------------
-        # 3) Transform the extracted data
+        # 2) Transform the extracted data
         # --------------------------------------------------------------------
         # The Transformer might combine or clean the data from all sources.
         transformer = Transformer(
             config=self._config,
             io_handler=self._io,
-            logger=self._logger
+            logger=self._logger,
+            clean_inputs=self._clean_inputs
         )
-        self._data_model = transformer.run(
-            pdf_attachments=pdf_attachments,
-            drive_pdfs=drive_pdfs,
-            ocr_data=ocr_data,
-            sage_invoices=sage_invoices,
-            sheets_data=sheets_data
-        )
+
+        self._data_model = transformer.run()
 
         # --------------------------------------------------------------------
         # 4) Load / Export the transformed data (optional)

@@ -50,7 +50,9 @@ class Transformer:
         self._logger.info("Starting transformations on clean inputs.")
 
         self._data_model = {
-            key: self._transformations.get(key, transform_default)(df)
+            key: self._transformations.get(key, transform_default)(
+                df, self._clean_inputs
+            )
             for key, df in self._clean_inputs.items()
         }
 
