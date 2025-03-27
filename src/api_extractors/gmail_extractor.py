@@ -144,7 +144,7 @@ class GmailExtractor(BaseExtractor):
                             filename = part.get("filename", "")
                             if filename and filename.lower().endswith(".pdf"):
                                 attachment_id = part.get("body", {}).get("attachmentId", "")
-                                local_path, hash = self._download_pdf_attachment(msg_id, attachment_id, filename)
+                                local_path, hash_invoice = self._download_pdf_attachment(msg_id, attachment_id, filename)
                                 attachments_data.append({
                                     "message_id": msg_id,
                                     "thread_id": thread_id,
@@ -154,7 +154,7 @@ class GmailExtractor(BaseExtractor):
                                     "attachment_id": attachment_id,
                                     "filename": filename,
                                     "pdf_local_path": local_path,
-                                    "hash": hash
+                                    "hash": hash_invoice
                                 })
                     # En caso de que no exista "parts", se puede tener el cuerpo directo y sin adjuntos.
 
@@ -221,7 +221,6 @@ class GmailExtractor(BaseExtractor):
             data = attachment.get('data', '')
             pdf_content = base64.urlsafe_b64decode(data.encode("UTF-8"))
             pdf_hash = compute_hash(pdf_content, 'md5')
-            self._logger.debug(f"Hash del PDF {filename}: {pdf_hash}")
 
             # Crear la carpeta si no existe
             os.makedirs(self._save_pdf_folder, exist_ok=True)

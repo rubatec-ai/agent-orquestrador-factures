@@ -49,7 +49,7 @@ class Transformer:
 
         self._data_model = {
             key: self._transformations.get(key, transform_default)(
-                df, self._clean_inputs
+                df, self._clean_inputs, self._logger
             )
             for key, df in self._clean_inputs.items()
         }
