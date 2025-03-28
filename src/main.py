@@ -60,6 +60,8 @@ class MainProcess:
 
         logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
         logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
+        logging.getLogger("googleapiclient.discovery").setLevel(logging.WARNING)
+        logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.WARNING)
 
         # Add a StringIO handler for Streamlit if enabled
         log_stream = None
@@ -100,9 +102,9 @@ class MainProcess:
         # 1) Instantiate the necessary clients to extract current data
         # --------------------------------------------------------------------
         extractors = {
-            'gmail': GmailExtractor(config=self._config, logger=self._logger),
-            'drive': DriveManager(config=self._config, logger=self._logger),
-            'sheets': GoogleSheetsManager(config=self._config, logger=self._logger),
+            'gmail': GmailExtractor(config=self._config),
+            'drive': DriveManager(config=self._config),
+            'sheets': GoogleSheetsManager(config=self._config)
         }
 
         for name, extractor in extractors.items():
@@ -140,7 +142,7 @@ class MainProcess:
             self._data_model = self._io.read_data_model(logger=self._logger)
 
         # Step 1: Initialize Problem
-        self._logger.name = 'Problem'
+        self._logger = logging.getLogger("GmailExtractor")
         self._logger.info("Initializing the Problem with scope and master data.")
 
         #problem = Problem()

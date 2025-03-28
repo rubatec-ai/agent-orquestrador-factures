@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, List, Optional
 import os
 import pandas as pd
@@ -25,7 +26,7 @@ class DriveManager(BaseExtractor):
       - Es fácilmente extendible para agregar funcionalidades adicionales, por ejemplo, para generar Google Sheets.
     """
 
-    def __init__(self, config: ConfigurationManager, logger: Logger) -> None:
+    def __init__(self, config: ConfigurationManager) -> None:
         self._credentials_path = config.google_credentials_json
         self._scopes = config.google_drive_scopes
         credentials = service_account.Credentials.from_service_account_file(
@@ -34,9 +35,10 @@ class DriveManager(BaseExtractor):
         self._service = build('drive', 'v3', credentials=credentials)
         # Folder ID base donde se realizarán las operaciones
         self._folder_id = config.google_drive_folder_id
-        logger.name = "DriveManager"
-        logger.info('Starting Drive Manager..')
-        super().__init__(config, logger)
+
+        self._logger  = logging.getLogger("DriveManager")
+        self._logger .info('Starting Drive Manager..')
+        super().__init__(config)
 
     def _list_files_recursive(self, folder_id: str, current_path: str = "") -> List[dict]:
         """
@@ -93,13 +95,21 @@ class DriveManager(BaseExtractor):
                 "webViewLink": "web_view_link"
             })
 
-            df['created_time'] = pd.to_datetime(df['created_time'], utc=True) \
-                .dt.tz_convert('Europe/Madrid') \
+            df['created_time'] = (
+                pd.to_datetime(df['created_time'],
+                               format='%Y-%m-%dT%H:%M:%S.%fZ',
+                               utc=True, errors='coerce')
+                .dt.tz_convert('Europe/Madrid')
                 .dt.strftime('%Y-%m-%d %H:%M:%S')
+            )
 
-            df['modified_time'] = pd.to_datetime(df['modified_time'], utc=True) \
-                .dt.tz_convert('Europe/Madrid') \
+            df['modified_time'] = (
+                pd.to_datetime(df['modified_time'],
+                               format='%Y-%m-%dT%H:%M:%S.%fZ',
+                               utc=True, errors='coerce')
+                .dt.tz_convert('Europe/Madrid')
                 .dt.strftime('%Y-%m-%d %H:%M:%S')
+            )
 
             self._clean_inputs["files"] = df
 

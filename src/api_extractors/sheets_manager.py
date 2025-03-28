@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Optional, List
 import pandas as pd
 from logging import Logger
@@ -26,13 +27,12 @@ class GoogleSheetsManager(BaseExtractor):
     - sheet_id: ID of the target Google Sheet
     """
 
-    def __init__(self, config: ConfigurationManager, logger: Logger) -> None:
+    def __init__(self, config: ConfigurationManager) -> None:
         """
         Initialize the Google Sheets manager.
 
         Args:
             config: Application configuration
-            logger: Logger instance for tracking operations
         """
         self._credentials_path = config.google_credentials_json
         self._sheets_scopes = config.google_sheets_scopes
@@ -46,9 +46,9 @@ class GoogleSheetsManager(BaseExtractor):
         self._sheet_name = config.sheet_name
         self._default_sheet_name = "Hoja 1"
 
-        logger.name = "GoogleSheetsManager"
-        logger.info('Starting Google Sheets Manager..')
-        super().__init__(config, logger)
+        self._logger = logging.getLogger("GoogleSheetsManager")
+        self._logger .info('Starting Google Sheets Manager..')
+        super().__init__(config)
 
     def get_input_data(self) -> Dict[str, pd.DataFrame]:
         try:
@@ -60,9 +60,19 @@ class GoogleSheetsManager(BaseExtractor):
             for col, dtype in type_dict.items():
                 if col in df.columns:
                     if dtype == 'date':
-                        df[col] = pd.to_datetime(df[col], errors='coerce').dt.date
+                        df[col] = pd.to_datetime(
+                            df[col],
+                            errors='coerce',
+                            dayfirst=True,
+                            format='%d/%m/%Y'
+                        ).dt.date
                     elif dtype == 'datetime':
-                        df[col] = pd.to_datetime(df[col], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+                        df[col] = pd.to_datetime(
+                            df[col],
+                            errors='coerce',
+                            dayfirst=True,
+                            format='%d/%m/%Y %H:%M:%S'
+                        ).dt.strftime('%Y-%m-%d %H:%M:%S')
                     else:
                         df[col] = df[col].astype(dtype, errors='ignore')
 

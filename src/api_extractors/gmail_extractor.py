@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Optional, List, Tuple
 import pandas as pd
 import base64
@@ -31,7 +32,7 @@ class GmailExtractor(BaseExtractor):
       - Genera dos DataFrames: uno "master" con todos los mensajes del Gmail y otro con solo los adjuntos PDF.
     """
 
-    def __init__(self, config: ConfigurationManager, logger: Logger) -> None:
+    def __init__(self, config: ConfigurationManager) -> None:
         self._config = config
         self._client_secret_file = config.google_gmail_client_secret_file  # e.g. "credentials/client_secret.json"
         self._token_file = config.google_gmail_token_file  # e.g. "credentials/token.pickle"
@@ -47,9 +48,9 @@ class GmailExtractor(BaseExtractor):
         self._start_date = config.gmail_start_date  # e.g., "2023/06/01"
         self._label = config.gmail_label  # e.g., "INBOX"
 
-        logger.name = "GmailExtractor"
-        logger.info('Starting Gmail Extractor..')
-        super().__init__(config, logger)
+        self._logger  = logging.getLogger("GmailExtractor")
+        self._logger .info('Starting Gmail Extractor..')
+        super().__init__(config)
 
     def _get_oauth_credentials(self):
         """

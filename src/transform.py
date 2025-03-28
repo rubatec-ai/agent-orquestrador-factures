@@ -33,12 +33,11 @@ class Transformer:
         self._transformations = {
             'invoices': transform_invoices,
             'files': transform_files,
-            'register' : transform_register
+            'register': transform_register
         }
         self._data_model = {}
 
     def run(self) -> Dict[str, pd.DataFrame]:
-
         """
         Perform transformations to clean inputs and generate the data model.
 
@@ -49,9 +48,9 @@ class Transformer:
 
         self._data_model = {
             key: self._transformations.get(key, transform_default)(
-                df, self._clean_inputs, self._logger
+                key=key, all_inputs=self._clean_inputs, logger=self._logger
             )
-            for key, df in self._clean_inputs.items()
+            for key, _ in self._clean_inputs.items()
         }
 
         self._logger.info("Transformations completed.")

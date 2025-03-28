@@ -15,9 +15,8 @@ class BaseExtractor:
         _clean_inputs (Dict[str, pd.DataFrame]): Cleaned input data.
     """
 
-    def __init__(self, config: ConfigurationManager, logger: Logger) -> None:
+    def __init__(self, config: ConfigurationManager) -> None:
         self._config = config
-        self._logger = logger
         self._raw_inputs: Dict[str, pd.DataFrame] = {}
         self._clean_inputs: Dict[str, pd.DataFrame] = {}
 
