@@ -86,6 +86,7 @@ class ConfigurationManager:
 
         # Parámetros ETL
         self._google_credentials_json= self._data_directory /self.get_value("etl.google.credentials_json")
+        self._google_credentials_json_provisional= self._data_directory /self.get_value("etl.google.credentials_json_provisional")
         self._google_drive_scopes = self.get_value("etl.google.drive.scopes")
         self._google_drive_folder_id = self.get_value("etl.google.drive.drive_folder_id")
         self._google_drive_processed_folder_id = self.get_value("etl.google.drive.processed_drive_folder_id")
@@ -101,7 +102,7 @@ class ConfigurationManager:
         self._documentai_processor_id = self.get_value("etl.google.documentai.processor_id")
         self._google_sheets_scopes = self.get_value("etl.google.sheets.scopes")
         self._sheet_id = self.get_value("etl.google.sheets.sheet_id")
-        self._sheet_name = self.get_value("etl.google.sheets.sheet_name")
+        self._sheet_name_registro = self.get_value("etl.google.sheets.sheet_name_registro")
         self._sage_api_key = self.get_value("etl.sage.api_key")
         self._sage_endpoint = self.get_value("etl.sage.endpoint")
 
@@ -209,6 +210,10 @@ class ConfigurationManager:
         return self._google_credentials_json
 
     @property
+    def google_credentials_json_provisional(self):
+        return self._google_credentials_json_provisional
+
+    @property
     def google_drive_scopes(self):
         return self._google_drive_scopes
 
@@ -269,8 +274,8 @@ class ConfigurationManager:
         return self._sheet_id
 
     @property
-    def sheet_name(self):
-        return self._sheet_name
+    def sheet_name_registro(self):
+        return self._sheet_name_registro
 
     @property
     def sage_api_key(self):

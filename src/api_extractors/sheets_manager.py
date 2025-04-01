@@ -11,28 +11,27 @@ from src.config import ConfigurationManager
 from src.api_extractors.base_extractor import BaseExtractor
 from src.utils.constants import MAPPING_RENAME_COL_REGISTRO
 
-
 class GoogleSheetsManager(BaseExtractor):
     """
     Manages read/write operations with Google Sheets.
 
     Features:
-    - Read data from sheets with automatic cleaning
-    - Write/update entire DataFrames to sheets
-    - Handle cell range conversions (A1 notation)
-    - Error handling with detailed logging
-
-    Requirements in config.json:
-    - google_sheets_scopes: Should include 'https://www.googleapis.com/auth/spreadsheets'
-    - sheet_id: ID of the target Google Sheet
+      - Reading data from Sheets with cleaning and type conversion.
+      - Writing/updating entire DataFrames to Sheets.
+      - Appending new rows to Sheets.
+      - Handling A1 notation for cell ranges.
     """
 
     def __init__(self, config: ConfigurationManager) -> None:
         """
-        Initialize the Google Sheets manager.
+        Initializes the Google Sheets Manager.
 
         Args:
-            config: Application configuration
+            config: Application configuration containing:
+                - google_credentials_json
+                - google_sheets_scopes
+                - sheet_id
+                - sheet_name
         """
         self._credentials_path = config.google_credentials_json
         self._sheets_scopes = config.google_sheets_scopes
@@ -43,19 +42,25 @@ class GoogleSheetsManager(BaseExtractor):
 
         self._service = build('sheets', 'v4', credentials=credentials)
         self._sheet_id = config.sheet_id
-        self._sheet_name = config.sheet_name
+        self._sheet_name = config.sheet_name_registro
         self._default_sheet_name = "Hoja 1"
 
         self._logger = logging.getLogger("GoogleSheetsManager")
-        self._logger .info('Starting Google Sheets Manager..')
+        self._logger.info('Starting Google Sheets Manager...')
         super().__init__(config)
 
     def get_input_data(self) -> Dict[str, pd.DataFrame]:
+        """
+        Reads data from the configured Google Sheet and returns a dictionary of DataFrames.
+        Performs column renaming and type conversion according to MAPPING_RENAME_COL_REGISTRO.
+        """
         try:
             df = self.read(sheet_name=self._sheet_name)
             rename_dict = {old: new for old, (new, _) in MAPPING_RENAME_COL_REGISTRO.items()}
             type_dict = {new: dtype for _, (new, dtype) in MAPPING_RENAME_COL_REGISTRO.items()}
             df.rename(columns=rename_dict, inplace=True)
+
+            line_items = self.read(sheet_name='line_items')
 
             for col, dtype in type_dict.items():
                 if col in df.columns:
@@ -76,7 +81,7 @@ class GoogleSheetsManager(BaseExtractor):
                     else:
                         df[col] = df[col].astype(dtype, errors='ignore')
 
-            return {"register": df}
+            return {"register": df, "line_items":line_items}
 
         except Exception as e:
             self._logger.error(f"Error in get_input_data: {str(e)}")
@@ -84,38 +89,28 @@ class GoogleSheetsManager(BaseExtractor):
 
     def clean_input_data(self) -> None:
         """
-        Clean and prepare the raw sheet data.
-
-        Operations performed:
-        - Remove completely empty rows
-        - Strip whitespace from string values
-        - Convert column names to lowercase
+        Cleans and prepares the raw sheet data:
+          - Removes completely empty rows.
+          - Strips whitespace from string values.
+          - Normalizes column names.
         """
-        df = self._raw_inputs.get("register")
-        if df is not None and not df.empty:
-            # Basic cleaning
-            df = df.dropna(how='all')
-            df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
-
-            # Column name normalization
-            df.columns = [col.strip().lower() for col in df.columns]
-
-            self._clean_inputs["register"] = df
-            self._logger.info("Sheet data cleaned successfully")
+        for key, df in self._raw_inputs.items():
+            if df is not None and not df.empty:
+                df = df.dropna(how='all')
+                df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
+                df.columns = [col.strip() for col in df.columns]
+                self._clean_inputs[key] = df
+                self._logger.info("Sheet data cleaned successfully")
 
     def read(self, sheet_name: Optional[str] = "registro") -> pd.DataFrame:
         """
-        Read data from specified sheet.
+        Reads data from the specified sheet.
 
         Args:
             sheet_name: Target sheet name (default: 'Sheet1')
 
         Returns:
-            Pandas DataFrame with sheet data
-
-        Raises:
-            HttpError: For Google API-related errors
-            Exception: For other unexpected errors
+            A Pandas DataFrame with the sheet data.
         """
         sheet_name = sheet_name or self._default_sheet_name
         range_name = f"{sheet_name}!A:Z"
@@ -133,7 +128,6 @@ class GoogleSheetsManager(BaseExtractor):
 
             headers = [col.strip() for col in values[0]]
             data = values[1:] if len(values) > 1 else []
-
             return pd.DataFrame(data, columns=headers)
 
         except HttpError as e:
@@ -143,56 +137,59 @@ class GoogleSheetsManager(BaseExtractor):
             self._logger.error(f"General error reading data: {e}")
             raise
 
-    def write_dataframe(self, df: pd.DataFrame, sheet_name: Optional[str] = None,
-                        range_start: str = "A1", clear: bool = True) -> bool:
+    def append_invoice_row(self, invoice_data: dict, sheet_name: Optional[str] = None) -> bool:
         """
-        Write/update a DataFrame to the specified sheet.
+        Appends a new row with invoice data to the Google Sheet.
 
         Args:
-            df: DataFrame to write
-            sheet_name: Target sheet name (default: 'Sheet1')
-            range_start: Starting cell (A1 notation)
-            clear: Whether to clear existing data in range
+            invoice_data (dict): Dictionary containing invoice fields to append.
+            sheet_name (Optional[str]): Target sheet name (defaults to configured sheet name).
 
         Returns:
-            True if operation succeeded, False otherwise
+            True if the row is appended successfully, False otherwise.
         """
-        sheet_name = sheet_name or self._default_sheet_name
+        sheet_name = sheet_name or self._sheet_name
+        range_name = f"{sheet_name}!A:Z"  # Adjust range if your sheet has more columns
+
+        # Convert the invoice_data dict to a list of values.
+        # The order of values should match your sheet's columns.
+        values = [[
+            invoice_data.get("web_view_link", ""),
+            invoice_data.get("fr_proveedor", ""),
+            invoice_data.get("proveedor", ""),
+            invoice_data.get("date_received", ""),
+            invoice_data.get("sender", ""),
+            invoice_data.get("invoice_filename", ""),
+            invoice_data.get("proveedor", ""),
+            invoice_data.get("canal_sie", ""),
+            invoice_data.get("base", ""),
+            invoice_data.get("iva_pct", ""),
+            invoice_data.get("iva_eur", ""),
+            invoice_data.get("total", ""),
+            invoice_data.get("due_date", ""),
+            invoice_data.get("forma_pago", ""),
+            invoice_data.get("marca_temporal_ocr", ""),
+            invoice_data.get("invoice_hash", "")
+        ]]
+        body = {"values": values}
+
         try:
-            range_name = self._convert_to_a1_notation(
-                sheet_name=sheet_name,
-                start_cell=range_start,
-                num_rows=len(df) + 1,  # +1 for headers
-                num_cols=len(df.columns)
-            )
-
-            # Prepare data structure
-            values = [df.columns.tolist()] + df.values.tolist()
-            body = {'values': values, 'majorDimension': 'ROWS'}
-
-            if clear:
-                self._clear_range(range_name)
-
-            request = self._service.spreadsheets().values().update(
+            request = self._service.spreadsheets().values().append(
                 spreadsheetId=self._sheet_id,
                 range=range_name,
-                valueInputOption='USER_ENTERED',
+                valueInputOption="USER_ENTERED",
+                insertDataOption="INSERT_ROWS",
                 body=body
             )
             request.execute()
-
-            self._logger.info(f"Data updated successfully in {range_name}")
+            self._logger.info("Invoice row appended successfully.")
             return True
-
-        except HttpError as e:
-            self._logger.error(f"HTTP error writing data: {e}")
-            return False
         except Exception as e:
-            self._logger.error(f"General error writing data: {e}")
+            self._logger.error(f"Error appending invoice row: {e}")
             return False
 
     def _clear_range(self, range_name: str) -> None:
-        """Clear contents of specified range."""
+        """Clears the contents of the specified range."""
         self._service.spreadsheets().values().clear(
             spreadsheetId=self._sheet_id,
             range=range_name,
@@ -201,7 +198,7 @@ class GoogleSheetsManager(BaseExtractor):
     def _convert_to_a1_notation(self, sheet_name: str, start_cell: str,
                                 num_rows: int, num_cols: int) -> str:
         """
-        Convert coordinates to A1 range notation.
+        Converts coordinates to A1 range notation.
 
         Example:
             _convert_to_a1_notation('Sheet1', 'B2', 3, 2) -> 'Sheet1!B2:C4'
@@ -219,13 +216,13 @@ class GoogleSheetsManager(BaseExtractor):
     @staticmethod
     def _column_to_index(col: str) -> int:
         """
-        Convert column letter(s) to numerical index.
+        Converts column letter(s) to numerical index.
 
         Args:
-            col: Column letter(s) (e.g., 'A', 'BC')
+            col: Column letters (e.g., 'A', 'BC').
 
         Returns:
-            Numerical index (A=1, Z=26, AA=27, etc.)
+            Numerical index (A=1, Z=26, AA=27, etc.).
         """
         num = 0
         for c in col:

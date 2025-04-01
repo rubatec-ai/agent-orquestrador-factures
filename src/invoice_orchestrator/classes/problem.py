@@ -1,54 +1,32 @@
-from typing import List
+from typing import List, Dict
 import pandas as pd
 from src.invoice_orchestrator.classes.invoice import Invoice
 
 
 class InvoiceProblem:
     """
-    Represents the problem domain for processing new invoices.
+    Represents the domain of new invoices to be processed.
 
-    This class initializes a list of Invoice objects from the transformed invoices DataFrame,
-    filtering only rows where new_invoice == True.
+    This class initializes a list of Invoice objects from the master merged DataFrame,
+    including only rows where new_invoice == True.
+
+    Attributes:
+        invoices (List[Invoice]): List of new Invoice objects.
     """
 
-    def __init__(self, invoices_df: pd.DataFrame):
+    def __init__(self, data_model: Dict[str, pd.DataFrame]):
         """
-        Initializes InvoiceProblem by creating Invoice objects from the DataFrame rows.
-        Uses itertuples() for better performance.
+        Initializes InvoiceProblem by creating Invoice objects for each new invoice.
 
         Args:
-            invoices_df (pd.DataFrame): The transformed invoices DataFrame.
+            data_model :
         """
-        # Filter for new invoices only.
-        new_invoices_df = invoices_df[invoices_df['new_invoice'] == True]
-        # Use itertuples to iterate faster; _asdict() converts namedtuple to dict.
+
+        invoices = data_model['invoices'].copy()
+        new_invoices_df = invoices[invoices['new_invoice'] == True]
+
+        # Use itertuples for performance; convert each row to a dictionary.
         self.invoices: List[Invoice] = [Invoice(row._asdict()) for row in new_invoices_df.itertuples(index=False)]
-
-    def run_ocr_on_all(self, ocr_extractor):
-        """
-        Processes OCR on all new invoices using the given OCR extractor.
-
-        Args:
-            ocr_extractor: An object/function with method process_invoice(pdf_path: str).
-
-        Returns:
-            List[dict]: OCR results for each invoice.
-        """
-        results = []
-        for invoice in self.invoices:
-            try:
-                ocr_data = invoice.process_ocr(ocr_extractor)
-                results.append({
-                    'hash': invoice.hash,
-                    'ocr_data': ocr_data
-                })
-            except Exception as e:
-                results.append({
-                    'hash': invoice.hash,
-                    'ocr_data': None,
-                    'error': str(e)
-                })
-        return results
 
     def __repr__(self):
         return f"InvoiceProblem({len(self.invoices)} new invoices)"

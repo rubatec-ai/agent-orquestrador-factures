@@ -182,6 +182,28 @@ class IOHandler:
 
             self.write_to_csv(df, filepath)
 
+    def write_solution_model(self, solution: Dict[str, pd.DataFrame], logger: Logger) -> None:
+        """
+        Save all data model tables to the specified directory.
+
+        Args:
+            solution  (Dict[str, pd.DataFrame]): Dictionary of DataFrames to save.
+            logger (Logger): Logger instance for logging messages.
+        """
+        directory = os.path.join(self._config.export_directory, self._config.scenario_name, 'solution')
+        os.makedirs(directory, exist_ok=True)
+
+        logger.info(f"Writing data model to {directory}.")
+
+        for name, df in solution.items():
+            filepath = os.path.join(directory, f'{name}.csv')
+
+            if df.empty:
+                logger.warning(f"The DataFrame '{name}' is empty. Skipping writing to {filepath}.")
+                continue
+
+            self.write_to_csv(df, filepath)
+
     @staticmethod
     def read_parquet(filepath: str) -> pd.DataFrame:
         """

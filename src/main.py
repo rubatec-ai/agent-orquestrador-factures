@@ -4,7 +4,10 @@ import time as t
 import io
 from datetime import datetime
 
+from src.api_extractors.openai_extractor import AIExtractor
 from src.config import ConfigurationManager
+from src.invoice_orchestrator.classes.invoice_orchestrator import InvoiceOrchestrator
+from src.invoice_orchestrator.classes.problem import InvoiceProblem
 from src.io_methods import IOHandler
 from src.transform import Transformer
 from src.post_process import PostProcessor
@@ -14,7 +17,7 @@ import warnings
 # Import your API clients
 from src.api_extractors.gmail_extractor import GmailExtractor
 from src.api_extractors.drive_manager import DriveManager
-from src.api_extractors.ocr_extractor import  GoogleOCRExtractor
+from src.api_extractors.ocr_extractor import GoogleOCRExtractor
 from src.api_extractors.sage_extractor import SageExtractor
 from src.api_extractors.sheets_manager import GoogleSheetsManager
 
@@ -36,9 +39,21 @@ class MainProcess:
         self._io = IOHandler(self._config)
         self._logger, self._log_stream = self._initialize_logger(streamlit)
 
+        self._gmail_extractor = GmailExtractor(config=self._config)
+        self._drive_manager = DriveManager(config=self._config)
+        self._sheets_manager = GoogleSheetsManager(config=self._config)
+        self._ocr_extractor = GoogleOCRExtractor(config=self._config)
+        self._openai_extractor = AIExtractor(
+            model=self._config.agent_model,
+            api_key=self._config.agent_api_key,
+            temperature=self._config.agent_temperature,
+            max_tokens=self._config._agent_max_tokens,
+            logger=self._logger
+        )
         self._clean_inputs = {}
-        self._data_model = None
+        self._data_model = {}
         self._problem = None
+        self._solution = {}
 
     def _initialize_logger(self, streamlit: bool) -> tuple[logging.Logger, io.StringIO | None]:
         """
@@ -101,10 +116,11 @@ class MainProcess:
         # --------------------------------------------------------------------
         # 1) Instantiate the necessary clients to extract current data
         # --------------------------------------------------------------------
+
         extractors = {
-            'gmail': GmailExtractor(config=self._config),
-            'drive': DriveManager(config=self._config),
-            'sheets': GoogleSheetsManager(config=self._config)
+            'gmail': self._gmail_extractor,
+            'drive': self._drive_manager,
+            'sheets': self._sheets_manager
         }
 
         for name, extractor in extractors.items():
@@ -142,23 +158,29 @@ class MainProcess:
             self._data_model = self._io.read_data_model(logger=self._logger)
 
         # Step 1: Initialize Problem
-        self._logger = logging.getLogger("GmailExtractor")
+        self._logger = logging.getLogger("Problem")
         self._logger.info("Initializing the Problem with scope and master data.")
 
-        #problem = Problem()
+        invoice_problem = InvoiceProblem(data_model=self._data_model)
 
-        # Step 2: Run an Orchestrator
-        # orchestrator = InvoiceOrchestrator(problem=self._problem, logger=self._logger)
-        # orchestrator.run()
-        # Generate Output DataFrame
-        #self._logger.info("Generating the solution DataFrame from SemanticSearch results.")
-        #self._data_model["solution"] = semantic_search.generate_output_dataframe()
+        # Initialize the orchestrator with the register dataframe (e.g., _data_model["register"])
+        orchestrator = InvoiceOrchestrator(
+            problem=invoice_problem,
+            openai_extractor=self._openai_extractor,
+            ocr_extractor=self._ocr_extractor,
+            sheets_manager=self._sheets_manager,
+            drive_manager=self._drive_manager,
+            logger=self._logger
+        )
+
+        # Run orchestration; the updated register DataFrame is returned.
+        self._solution = orchestrator.run()
 
         # Step 3: Export Solution (if enabled)
         if self._config.export_solution:
-            if not self._data_model["solution"].empty:
-                self._logger.info("Exporting the solution DataFrame to the output directory.")
-                self._io.write_solution(self._data_model["solution"])
+            if not self._solution.empty:
+                self._logger.info("Exporting the solution DataFrames to the output directory.")
+                self._io.write_solution_model(solution=self._solution, logger=self._logger)
             else:
                 self._logger.warning("Solution DataFrame is empty. Nothing to export.")
 
@@ -201,6 +223,7 @@ class MainProcess:
 
         finally:
             file_handler.close()
+
 
 if __name__ == "__main__":
     warnings.filterwarnings("ignore", category=DeprecationWarning)

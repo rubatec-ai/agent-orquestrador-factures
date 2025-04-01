@@ -24,9 +24,10 @@
   "etl": {
     "google": {
       "credentials_json": "orquestradorfactures-a95e76ac4624.json",
+      "credentials_json_provisional": "makeautofacturas-a32bced4f7ec.json",
       "drive": {
         "scopes": [
-          "https://www.googleapis.com/auth/drive.readonly"
+          "https://www.googleapis.com/auth/drive"
         ],
         "drive_folder_id": "1dne2uuG2IU1Gy3RI8-4ehEVwYb3C8CUy",
         "processed_drive_folder_id": "1aCmc9WM8PVLnvZZPZoXo8yY3DKJKyInd"
@@ -43,16 +44,17 @@
         "label": "INBOX"
       },
       "documentai": {
-        "project_id": "orquestradorfactures",
+        "project_id": "makeautofacturas",
         "location": "eu",
-        "processor_id": "edaa9513e5d8a4c4"
+        "processor_id": "17e1ea08af4cf477"
       },
       "sheets": {
         "scopes": [
           "https://www.googleapis.com/auth/spreadsheets"
         ],
         "sheet_id": "1GBLFieQ_kvDoGSRr5M3Mu47SBIPApIK8jE14J8A3ufc",
-        "sheet_name": "registro"
+        "sheet_name_registro": "registro",
+        "sheet_name_lines" : "line_items"
       }
     },
     "sage": {
@@ -62,9 +64,9 @@
   },
   "ai_parser": {
     "agent": {
-      "model": "gpt-4o-mini",
+      "model": "gpt-4o-2024-08-06",
       "temperature": 0.1,
-      "max_tokens": 1000
+      "max_tokens": 75
     }
   }
 }

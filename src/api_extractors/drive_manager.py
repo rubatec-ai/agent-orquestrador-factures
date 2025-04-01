@@ -27,7 +27,7 @@ class DriveManager(BaseExtractor):
     """
 
     def __init__(self, config: ConfigurationManager) -> None:
-        self._credentials_path = config.google_credentials_json
+        self._credentials_path = config._google_credentials_json
         self._scopes = config.google_drive_scopes
         credentials = service_account.Credentials.from_service_account_file(
             self._credentials_path, scopes=self._scopes

@@ -1,10 +1,9 @@
 import logging
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, Tuple
 import pandas as pd
 import base64
 import os
 import pickle
-from logging import Logger
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -48,8 +47,8 @@ class GmailExtractor(BaseExtractor):
         self._start_date = config.gmail_start_date  # e.g., "2023/06/01"
         self._label = config.gmail_label  # e.g., "INBOX"
 
-        self._logger  = logging.getLogger("GmailExtractor")
-        self._logger .info('Starting Gmail Extractor..')
+        self._logger = logging.getLogger("GmailExtractor")
+        self._logger.info('Starting Gmail Extractor..')
         super().__init__(config)
 
     def _get_oauth_credentials(self):
@@ -145,7 +144,8 @@ class GmailExtractor(BaseExtractor):
                             filename = part.get("filename", "")
                             if filename and filename.lower().endswith(".pdf"):
                                 attachment_id = part.get("body", {}).get("attachmentId", "")
-                                local_path, hash_invoice = self._download_pdf_attachment(msg_id, attachment_id, filename)
+                                local_path, hash_invoice = self._download_pdf_attachment(msg_id, attachment_id,
+                                                                                         filename)
                                 attachments_data.append({
                                     "message_id": msg_id,
                                     "thread_id": thread_id,
@@ -207,7 +207,7 @@ class GmailExtractor(BaseExtractor):
         payload = msg.get("payload", {})
         return extract_text(payload)
 
-    def _download_pdf_attachment(self, msg_id: str, attachment_id: str, filename: str) -> Optional[Tuple[str,str]]:
+    def _download_pdf_attachment(self, msg_id: str, attachment_id: str, filename: str) -> Optional[Tuple[str, str]]:
         """
         Descarga el adjunto PDF usando la API de Gmail y lo guarda en la carpeta temporal.
         Retorna la ruta local del archivo.
