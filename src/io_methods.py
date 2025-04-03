@@ -109,21 +109,6 @@ class IOHandler:
             filepath = os.path.join(directory, f'{name}.csv')
             self.write_to_csv(df, filepath)
 
-    def read_solution(self, logger: Logger) -> pd.DataFrame:
-        """
-        Load specific "Solution" for a specific "run_name" (previously done).
-
-        Args:
-            logger (Logger): Logger instance for logging messages.
-
-        Returns:
-            Dict[str, pd.DataFrame]: Dictionary of loaded DataFrames.
-        """
-        directory = os.path.join(self._config.export_directory, self._config.run_name)
-        file_name = 'solution.csv'
-        df = self.read_csv(str(os.path.join(directory, file_name)))
-
-        return df
 
     def write_solution(self, df: pd.DataFrame) -> None:
         """

@@ -4,12 +4,12 @@ from datetime import datetime
 
 from google.oauth2 import service_account
 from google.cloud import documentai_v1 as documentai
-
-import PyPDF2
+import re
 
 from src.api_extractors.openai_extractor import AIExtractor
 from src.config import ConfigurationManager
-from src.utils.constants import EXTRACTED_DATA_INVOICE_PARSER  # Diccionario base con los campos esperados
+from src.utils.constants import EXTRACTED_DATA_INVOICE_PARSER, \
+    DEFAULT_PARAMETERS_TO_SEARCH, MAX_WORDS_FIRST_PAGE  # Diccionario base con los campos esperados
 
 
 class GoogleOCRExtractor:
@@ -30,7 +30,7 @@ class GoogleOCRExtractor:
         self._logger = logging.getLogger("GoogleOCRExtractor")
         self._logger.info("Initializing GoogleOCRExtractor...")
         self._config = config
-        self._credentials_path = config.google_credentials_json_provisional
+        self._credentials_path = config.google_credentials_json
         self._project_id = config.documentai_project_id
         self._location = config.documentai_location
         self._processor_id = config.documentai_processor_id
@@ -73,6 +73,11 @@ class GoogleOCRExtractor:
 
         # Empezamos con una copia base de los campos esperados
         extracted_data = EXTRACTED_DATA_INVOICE_PARSER.copy()
+        full_text = document_object.text if document_object.text else ""
+
+        # Lógica para recortar texto según páginas
+        words = full_text.split()[:MAX_WORDS_FIRST_PAGE]
+
         # Para campos que pueden repetirse, usamos listas
         line_items_list = []
         vat_list = []
@@ -124,7 +129,7 @@ class GoogleOCRExtractor:
                     vat_data[sub_type] = sub_norm if sub_norm is not None else sub_text
                 vat_list.append(vat_data)
             else:
-                # Para campos simples, si hay valor normalizado se utiliza, sino se usa el texto reconocido.
+                # Para campos simples, si hay valor normalizado se utiliza, si no se usa el texto reconocido.
                 extracted_data[entity_type] = normalized_val if normalized_val is not None else mention_text
 
         # Guardar las listas en el diccionario final si hay datos
@@ -133,9 +138,8 @@ class GoogleOCRExtractor:
         if vat_list:
             extracted_data["vat"] = vat_list
 
-
         extracted_data["marca_temporal_ocr"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+        extracted_data["text"] = " ".join(words)
 
         return extracted_data
 
@@ -143,43 +147,69 @@ class GoogleOCRExtractor:
         """
         Procesa el PDF de una factura para extraer datos mediante Document AI y
         realiza procesamiento adicional con OpenAI si es necesario.
-
         Combina la extracción de Document AI y OpenAI en un solo diccionario.
         """
         self._logger.info(f"Processing invoice: {pdf_path}")
 
-        # Extraer el texto completo del PDF (para utilizar en prompts u otros fines)
-        pdf_text = self.extract_text_from_pdf(pdf_path)
+        # Paso 1: Extraer datos con Document AI
+        try:
+            data_invoice_parser = self._process_document_invoice_parser(pdf_path)
+        except Exception as e:
+            self._logger.error(f"Error al procesar Document AI: {e}")
+            data_invoice_parser = {}
 
-        # Extraer datos con Document AI
-        data_invoice_parser = self._process_document_invoice_parser(pdf_path)
+        # Obtener el texto extraído por Document AI
+        pdf_text = data_invoice_parser.get("text", "")
 
-        fields_openai = ['supplier_email', 'supplier_website', ]
-        ocr_hints = {key: data_invoice_parser[key] for key in fields_openai if key in data_invoice_parser}
+        # Verificar si hay datos suficientes para continuar
+        if not pdf_text and not data_invoice_parser:
+            self._logger.warning("No se pudo extraer texto ni datos estructurados. Finalizando procesamiento.")
+            return {"marca_temporal_ocr": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
-        # Extraer datos adicionales (casos edge) con OpenAI
-        openai_invoice_fields = openai_extractor.extract_edge_case(pdf_text=pdf_text, ocr_extracted_data=ocr_hints)
+        # Paso 2: Preparar datos para OpenAI
+        fields_openai = ['supplier_email', 'supplier_website']
+        ocr_hints = {key: data_invoice_parser.get(key) for key in fields_openai if key in data_invoice_parser}
 
-        # Combinar ambos diccionarios, dando prioridad a los datos de Document AI
-        ocr_data = {**data_invoice_parser, **openai_invoice_fields}
+        # Paso 3: Extraer datos adicionales con OpenAI (si es necesario)
+        if pdf_text:
+            try:
+                openai_invoice_fields = openai_extractor.extract_edge_case(
+                    pdf_text=pdf_text,
+                    ocr_extracted_data=ocr_hints
+                )
+            except Exception as e:
+                self._logger.error(f"Error al procesar OpenAI: {e}")
+                openai_invoice_fields = DEFAULT_PARAMETERS_TO_SEARCH
+        else:
+            self._logger.warning("No hay datos suficientes para OpenAI. Saltando este paso.")
+            openai_invoice_fields = DEFAULT_PARAMETERS_TO_SEARCH
 
-        # Agregar una marca temporal de la extracción
-        ocr_data["marca_temporal_ocr"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Paso 4: Combinar ambos diccionarios
+        ocr_data = {**data_invoice_parser, **openai_invoice_fields,
+                    "marca_temporal_ocr": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
         return ocr_data
 
     @staticmethod
-    def extract_text_from_pdf(pdf_path: str) -> str:
-        """
-        Extrae el texto completo de un PDF utilizando PyPDF2.
-        """
-        text = ""
-        try:
-            with open(pdf_path, "rb") as file:
-                reader = PyPDF2.PdfReader(file)
-                for page in reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += page_text + "\n"
-        except Exception as e:
-            logging.getLogger("GoogleOCRExtractor").error(f"Error extracting text from PDF: {e}")
-        return text
+    def extract_canal_sie(text):
+        # Normalizamos el texto
+        text = text.lower()
+
+        # Palabras clave permitidas cerca del número
+        keywords = ['sie', 'canal', 'contrato']
+
+        # Expresión regular: palabra clave cerca de un número de 4 dígitos
+        pattern = r"(sie|canal|contrato)[^\\d\\n]{0,20}?(\\b\\d{4}\\b)|" \
+                  r"(\\b\\d{4}\\b)[^\\d\\n]{0,20}?(sie|canal|contrato)"
+
+        matches = re.findall(pattern, text, flags=re.IGNORECASE)
+
+        if matches:
+            # Encuentra el primer número válido asociado a palabra clave
+            for match in matches:
+                # Flatten y filtra los grupos vacíos
+                possible_codes = [m for m in match if m and m.strip().isdigit()]
+                for code in possible_codes:
+                    if len(code) == 4:
+                        return code
+        return "desconocido"

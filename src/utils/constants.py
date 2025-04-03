@@ -1,5 +1,8 @@
 MAX_RESULTS_GMAIL = 100
 PAGE_SIZE_DRIVE = 1000
+MAX_WORDS_FIRST_PAGE = 333
+
+CRITICAL_FIELDS_LINE_ITEMS = ['line_item/amount', 'line_item/quantity', 'line_item/unit_price']
 
 MAPPING_RENAME_COL_REGISTRO = {
     'Link': ('web_view_link', str),
@@ -63,6 +66,11 @@ EXTRACTED_DATA_INVOICE_PARSER = {
             "total_tax_amount": None
 }
 
+
+EXTRACTED_DATA_OPENAI = ['line_item', 'vat', 'marca_temporal_ocr', 'text', 'canal_sie', 'fr_proveedor', 'proveedor', 'forma_pago', 'supplier_id']
+
+INVALID_CANAL_SIE_VALUES = ["desconocido", "9999"]
+
 SYSTEM_PROMPT_ANALYSIS = (
     "You are a smart OCR system designed to extract specific parameters from PDF content. "
     "Follow the detailed instructions provided and return ONLY a valid JSON object with the results, "
@@ -71,26 +79,48 @@ SYSTEM_PROMPT_ANALYSIS = (
 
 
 PROMPT_TASK = (
-    "Extract the following parameters from the provided PDF text according to the instructions below:"
+    "Extract the following parameters from the provided PDF text according to the instructions below. "
+    "If a parameter is not explicitly found or cannot be inferred from the context, write 'desconocido'."
 )
 
+DEFAULT_PARAMETERS_TO_SEARCH = {
+    "canal_sie" : "desconocido",
+    "fr_proveedor" : "desconocido",
+    "proveedor" : "desconocido",
+    "forma_pago" : "desconocido",
+    "supplier_id" : "desconocido",
+}
 
 PARAMETERS_TO_SEARCH = {
     "canal_sie": (
-        "This is our internal contract number used for cost allocation. "
-        "It is always a 4-digit number (e.g., 1234 or 9999) and may appear with labels such as 'SIE', 'Canal', or 'Contrato'."
-        "Maybe it is not within the invoice, then it should be labeled as 'desconocido'"
+        "A mandatory 4-digit internal contract identifier used for cost allocation purposes (e.g., '9999'). "
+        "Must appear as a standalone number, not embedded within longer codes or identifiers. "
+        "Must be found in proximity to specific labels such as 'SIE', 'Canal', or 'Contrato'. "
+        "If no valid identifier is found, return 'desconocido'."
     ),
     "fr_proveedor": (
-        "This is the invoice number used by the supplier to identify the invoice."
+        "This is the invoice number used by the supplier to identify the invoice." 
+        "It CAN NOT start with FR. "
+        "Most of the time, these are large identifiers using numbers. "
+        "If not found, write 'desconocido'."
     ),
     "proveedor": (
-        "RUBATEC always receive the invoice so IS NOT the supplier! If the supplier name is not explicitly found in the invoice text, "
-        "check for the supplier email as a fallback. Usually emails are like name@company_name and websites are company_name.com so maybe you could use this info."
+        "RUBATEC always receives the invoice, so IS NOT the supplier! "
+        "If the supplier name is not explicitly found in the invoice text, check for the supplier email as a fallback. "
+        "Usually emails are like name@company_name and websites are company_name.com, so you could use this info. "
+        "If neither the name nor the email is found, write 'desconocido'."
     ),
     "forma_pago": (
-        "This field indicates the payment terms. Examples include 'Confirming XXX días', 'Recibo domiciliado', or 'None' if not found."
-    )
+        "This field indicates the payment terms. Examples include 'Confirming XXX días' or 'Recibo domiciliado'. "
+        "If not found, write 'desconocido'."
+    ),
+    "supplier_id": (
+        "RUBATEC always receives the invoice, so the supplier identifier must NOT be 'A60744216'. "
+        "Instead, the supplier identifier should be a valid Spanish CIF: it must start with a letter, "
+        "followed by 7 digits, and end with a control character (which can be either a digit or a letter). "
+        "Optionally, it may be prefixed with 'ES' to indicate that it belongs to Spain. "
+        "If not found, write 'desconocido'."
+    ),
 }
 
 # Model pricing constants (as of 2025-01-13)

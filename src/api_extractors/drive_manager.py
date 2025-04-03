@@ -177,7 +177,8 @@ class DriveManager(BaseExtractor):
         file = self._service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id, name, parents'
+            fields='id, name, parents, webViewLink'
         ).execute()
         self._logger.info(f"Archivo subido: {file.get('name')} (ID: {file.get('id')}) en carpeta {target_folder_id}")
+
         return file

@@ -10,16 +10,14 @@
   "execution": {
     "run_name": "",
     "run_etl": true,
-    "run_solver": true,
-    "run_post_process": false
+    "run_solver": true
   },
   "logger": {
     "debug": true
   },
   "export": {
     "etl": true,
-    "solution": true,
-    "post_process": true
+    "solution": true
   },
   "etl": {
     "google": {
@@ -44,9 +42,9 @@
         "label": "INBOX"
       },
       "documentai": {
-        "project_id": "makeautofacturas",
+        "project_id": "orquestradorfactures",
         "location": "eu",
-        "processor_id": "17e1ea08af4cf477"
+        "processor_id": "edaa9513e5d8a4c4"
       },
       "sheets": {
         "scopes": [
@@ -65,7 +63,7 @@
   "ai_parser": {
     "agent": {
       "model": "gpt-4o-2024-08-06",
-      "temperature": 0.1,
+      "temperature": 0.3,
       "max_tokens": 75
     }
   }

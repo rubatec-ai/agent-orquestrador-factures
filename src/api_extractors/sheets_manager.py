@@ -11,6 +11,7 @@ from src.config import ConfigurationManager
 from src.api_extractors.base_extractor import BaseExtractor
 from src.utils.constants import MAPPING_RENAME_COL_REGISTRO
 
+
 class GoogleSheetsManager(BaseExtractor):
     """
     Manages read/write operations with Google Sheets.
@@ -81,7 +82,7 @@ class GoogleSheetsManager(BaseExtractor):
                     else:
                         df[col] = df[col].astype(dtype, errors='ignore')
 
-            return {"register": df, "line_items":line_items}
+            return {"register": df, "line_items": line_items}
 
         except Exception as e:
             self._logger.error(f"Error in get_input_data: {str(e)}")
@@ -137,41 +138,26 @@ class GoogleSheetsManager(BaseExtractor):
             self._logger.error(f"General error reading data: {e}")
             raise
 
-    def append_invoice_row(self, invoice_data: dict, sheet_name: Optional[str] = None) -> bool:
+    def append_row(self, rows_data: List[List], sheet_name: Optional[str] = None,
+                   sheet_range: Optional[str] = 'A:Z') -> bool:
         """
-        Appends a new row with invoice data to the Google Sheet.
+        Añade múltiples filas a la hoja especificada.
 
         Args:
-            invoice_data (dict): Dictionary containing invoice fields to append.
-            sheet_name (Optional[str]): Target sheet name (defaults to configured sheet name).
-
+            rows_data (List[List]): Lista de listas, donde cada sublista representa una fila a insertar.
+            sheet_name (str): Nombre de la pestaña (default: _default_sheet_name).
+            sheet_range (str): Rango dentro de Google sheets.
         Returns:
-            True if the row is appended successfully, False otherwise.
+            True si se inserta correctamente, False en caso contrario.
         """
-        sheet_name = sheet_name or self._sheet_name
-        range_name = f"{sheet_name}!A:Z"  # Adjust range if your sheet has more columns
-
-        # Convert the invoice_data dict to a list of values.
-        # The order of values should match your sheet's columns.
-        values = [[
-            invoice_data.get("web_view_link", ""),
-            invoice_data.get("fr_proveedor", ""),
-            invoice_data.get("proveedor", ""),
-            invoice_data.get("date_received", ""),
-            invoice_data.get("sender", ""),
-            invoice_data.get("invoice_filename", ""),
-            invoice_data.get("proveedor", ""),
-            invoice_data.get("canal_sie", ""),
-            invoice_data.get("base", ""),
-            invoice_data.get("iva_pct", ""),
-            invoice_data.get("iva_eur", ""),
-            invoice_data.get("total", ""),
-            invoice_data.get("due_date", ""),
-            invoice_data.get("forma_pago", ""),
-            invoice_data.get("marca_temporal_ocr", ""),
-            invoice_data.get("invoice_hash", "")
-        ]]
-        body = {"values": values}
+        sheet_name = sheet_name or self._default_sheet_name
+        range_name = f"{sheet_name}!{sheet_range}"
+        # Limpiar cada fila individualmente
+        cleaned_rows = [
+            [str(item) if item is not None else "" for item in row]
+            for row in rows_data
+        ]
+        body = {"values": cleaned_rows}  # Sin envolver en otra lista
 
         try:
             request = self._service.spreadsheets().values().append(
@@ -182,10 +168,10 @@ class GoogleSheetsManager(BaseExtractor):
                 body=body
             )
             request.execute()
-            self._logger.info("Invoice row appended successfully.")
+            self._logger.info(f"{len(rows_data)} filas añadidas a '{sheet_name}'.")
             return True
         except Exception as e:
-            self._logger.error(f"Error appending invoice row: {e}")
+            self._logger.error(f"Error añadiendo filas a '{sheet_name}': {e}")
             return False
 
     def _clear_range(self, range_name: str) -> None:

@@ -225,8 +225,7 @@ class GmailExtractor(BaseExtractor):
 
             # Crear la carpeta si no existe
             os.makedirs(self._save_pdf_folder, exist_ok=True)
-            local_filename = f"{msg_id}_{filename}"
-            local_path = os.path.join(self._save_pdf_folder, local_filename)
+            local_path = os.path.join(self._save_pdf_folder, filename)
 
             with open(local_path, "wb") as f:
                 f.write(pdf_content)

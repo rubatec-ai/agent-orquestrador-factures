@@ -10,7 +10,6 @@ from src.invoice_orchestrator.classes.invoice_orchestrator import InvoiceOrchest
 from src.invoice_orchestrator.classes.problem import InvoiceProblem
 from src.io_methods import IOHandler
 from src.transform import Transformer
-from src.post_process import PostProcessor
 
 import warnings
 
@@ -18,7 +17,6 @@ import warnings
 from src.api_extractors.gmail_extractor import GmailExtractor
 from src.api_extractors.drive_manager import DriveManager
 from src.api_extractors.ocr_extractor import GoogleOCRExtractor
-from src.api_extractors.sage_extractor import SageExtractor
 from src.api_extractors.sheets_manager import GoogleSheetsManager
 
 
@@ -140,6 +138,7 @@ class MainProcess:
         )
 
         self._data_model = transformer.run()
+        self._logger.info(f"Data model generated with keys: {list(self._data_model.keys())}")
 
         # --------------------------------------------------------------------
         # 4) Load / Export the transformed data (optional)
@@ -175,30 +174,16 @@ class MainProcess:
 
         # Run orchestration; the updated register DataFrame is returned.
         self._solution = orchestrator.run()
+        self._logger.info(f"Solution generated with keys: {list(self._solution.keys())}")
 
         # Step 3: Export Solution (if enabled)
         if self._config.export_solution:
-            if not self._solution.empty:
+            if self._solution and any(not df.empty for df in self._solution.values()):
                 self._logger.info("Exporting the solution DataFrames to the output directory.")
                 self._io.write_solution_model(solution=self._solution, logger=self._logger)
             else:
-                self._logger.warning("Solution DataFrame is empty. Nothing to export.")
+                self._logger.warning("Solution dictionary is empty or all DataFrames are empty. Nothing to export.")
 
-    def run_post_process(self) -> None:
-        """
-        Execute the post-processing step.
-
-        Prepares and exports post-processed data based on the solution.
-        """
-        if not self._config.run_etl:
-            self._data_model = self._io.read_data_model(logger=self._logger)
-
-        if not self._config.run_solver:
-            self._data_model['solution'] = self._io.read_solution(logger=self._logger)
-
-        post_processor = PostProcessor(data_model=self._data_model, config=self._config, logger=self._logger,
-                                       io_handler=self._io)
-        post_processor.run()
 
     def run(self):
         """
@@ -215,9 +200,6 @@ class MainProcess:
 
             if self._config.run_solver:
                 self.run_solver()
-
-            if self._config.run_post_process:
-                self.run_post_process()
 
             self._logger.info(f"Execution completed in {t.time() - start_time:.2f} seconds.")
 

@@ -70,11 +70,9 @@ class ConfigurationManager:
         self._run_name = self.get_value('execution.run_name')
         self._run_etl = self.get_value('execution.run_etl')
         self._run_solver = self.get_value('execution.run_solver')
-        self._run_post_process = self.get_value('execution.run_post_process')
 
         self._export_etl = self.get_value('export.etl')
         self._export_solution = self.get_value('export.solution')
-        self._export_post_process = self.get_value('export.post_process')
 
         self._logger_debug = self.get_value('logger.debug')
 
