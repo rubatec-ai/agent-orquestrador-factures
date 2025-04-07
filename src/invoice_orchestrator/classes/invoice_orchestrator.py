@@ -5,13 +5,14 @@ from typing import Dict, List
 import pandas as pd
 
 from src.api_extractors.drive_manager import DriveManager
+from src.api_extractors.gmail_manager import GmailManager
 from src.api_extractors.ocr_extractor import GoogleOCRExtractor
 from src.api_extractors.openai_extractor import AIExtractor
 from src.api_extractors.sheets_manager import GoogleSheetsManager
 from src.invoice_orchestrator.classes.problem import InvoiceProblem
 from src.invoice_orchestrator.utils.utils import get_field
 from src.utils.constants import CRITICAL_FIELDS_LINE_ITEMS, EXTRACTED_DATA_INVOICE_PARSER, EXTRACTED_DATA_OPENAI, \
-    INVALID_CANAL_SIE_VALUES
+    INVALID_CANAL_SIE_VALUES, EMAIL_INVALID_CANAL_SUBJECT, EMAIL_INVALID_CANAL_BODY
 from src.utils.utils import parse_currency
 
 
@@ -26,12 +27,14 @@ class InvoiceOrchestrator:
                  ocr_extractor: GoogleOCRExtractor,
                  drive_manager: DriveManager,
                  sheets_manager: GoogleSheetsManager,
+                 gmail_manager: GmailManager,
                  logger: logging.Logger = None):
         self.problem = problem
         self.openai_extractor = openai_extractor
         self.ocr_extractor = ocr_extractor
         self.drive_manager = drive_manager
         self.sheets_manager = sheets_manager
+        self.gmail_manager = gmail_manager
         self.logger = logger or logging.getLogger("InvoiceOrchestrator")
 
         self.raw_ocr_results = []
@@ -64,6 +67,7 @@ class InvoiceOrchestrator:
         Processes a single invoice:
         - Extracts OCR and OpenAI data.
         - Updates invoice fields.
+        - Sends an email notification if invoice.canal_sie is "desconocido".
         - Uploads the PDF to Google Drive.
         - Collects raw OCR data and line items for later writing to Google Sheets.
 
@@ -124,6 +128,19 @@ class InvoiceOrchestrator:
                 self.logger.info(f"Added to line_results: {len(self.line_results)} items")
             else:
                 self.logger.debug(f"Line item skipped for {invoice.invoice_filename}: insufficient data or no description")
+
+            # Envío automático de correo si canal_sie es "desconocido".
+            if invoice.canal_sie == "desconocido":
+                self.logger.info(
+                    f"Invoice {invoice.invoice_filename} has 'desconocido' in canal_sie. Sending notification email to {invoice.sender}.")
+
+                subject = f"{EMAIL_INVALID_CANAL_SUBJECT}: Revisar {invoice.invoice_filename}"
+                sent_message = self.gmail_manager.send_email(
+                    recipient=invoice.sender,
+                    subject=subject,
+                    body_text=EMAIL_INVALID_CANAL_BODY,
+                )
+                self.logger.info(f"Notification email sent, message ID: {sent_message.get('id', 'N/A')}")
 
             # Upload PDF to Google Drive
             canal = invoice.canal_sie if invoice.canal_sie else "desconocido"

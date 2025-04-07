@@ -11,13 +11,14 @@ from googleapiclient.discovery import build
 from src.config import ConfigurationManager
 from src.api_extractors.base_extractor import BaseExtractor
 from src.utils.constants import MAX_RESULTS_GMAIL
-from email.utils import parsedate_to_datetime
+from email.utils import parsedate_to_datetime, parseaddr
+from email.mime.text import MIMEText
 import pytz
 
 from src.utils.utils import compute_hash
 
 
-class GmailExtractor(BaseExtractor):
+class GmailManager(BaseExtractor):
     """
     Extrae y procesa datos de Gmail usando credenciales OAuth 2.0.
 
@@ -262,3 +263,22 @@ class GmailExtractor(BaseExtractor):
         except Exception:
             # Si no se puede parsear, se devuelve el string original (o podrías retornar None).
             return date_str
+
+    def send_email(self, recipient: str, subject: str, body_text: str, thread_id: str = None):
+        # Construir el mensaje MIME
+        message = MIMEText(body_text)
+        _, recipient_email = parseaddr(recipient)
+        message['to'] = recipient_email
+        message['subject'] = subject
+        # Actualmente no se usa nunca esta lógica
+        if thread_id:
+            message['In-Reply-To'] = thread_id
+            message['References'] = thread_id
+        # Codificar el mensaje en base64
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        message_body = {'raw': raw_message}
+        if thread_id:
+            message_body['threadId'] = thread_id
+        # Enviar el mensaje usando la API de Gmail
+        sent_message = self._service.users().messages().send(userId='me', body=message_body).execute()
+        return sent_message

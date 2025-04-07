@@ -14,7 +14,7 @@ from src.transform import Transformer
 import warnings
 
 # Import your API clients
-from src.api_extractors.gmail_extractor import GmailExtractor
+from src.api_extractors.gmail_manager import GmailManager
 from src.api_extractors.drive_manager import DriveManager
 from src.api_extractors.ocr_extractor import GoogleOCRExtractor
 from src.api_extractors.sheets_manager import GoogleSheetsManager
@@ -37,7 +37,7 @@ class MainProcess:
         self._io = IOHandler(self._config)
         self._logger, self._log_stream = self._initialize_logger(streamlit)
 
-        self._gmail_extractor = GmailExtractor(config=self._config)
+        self._gmail_manager = GmailManager(config=self._config)
         self._drive_manager = DriveManager(config=self._config)
         self._sheets_manager = GoogleSheetsManager(config=self._config)
         self._ocr_extractor = GoogleOCRExtractor(config=self._config)
@@ -116,7 +116,7 @@ class MainProcess:
         # --------------------------------------------------------------------
 
         extractors = {
-            'gmail': self._gmail_extractor,
+            'gmail': self._gmail_manager,
             'drive': self._drive_manager,
             'sheets': self._sheets_manager
         }
@@ -168,6 +168,7 @@ class MainProcess:
             openai_extractor=self._openai_extractor,
             ocr_extractor=self._ocr_extractor,
             sheets_manager=self._sheets_manager,
+            gmail_manager=self._gmail_manager,
             drive_manager=self._drive_manager,
             logger=self._logger
         )

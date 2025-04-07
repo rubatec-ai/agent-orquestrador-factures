@@ -32,7 +32,8 @@
       },
       "gmail": {
         "scopes": [
-          "https://www.googleapis.com/auth/gmail.readonly"
+          "https://www.googleapis.com/auth/gmail.readonly",
+          "https://www.googleapis.com/auth/gmail.send"
         ],
         "client_secret_file": "client_secret.json",
         "gmail_token_file": "token.pickle",
@@ -63,7 +64,7 @@
   "ai_parser": {
     "agent": {
       "model": "gpt-4o-2024-08-06",
-      "temperature": 0.3,
+      "temperature": 0.15,
       "max_tokens": 75
     }
   }

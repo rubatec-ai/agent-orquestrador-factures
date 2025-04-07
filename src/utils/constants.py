@@ -71,6 +71,19 @@ EXTRACTED_DATA_OPENAI = ['line_item', 'vat', 'marca_temporal_ocr', 'text', 'cana
 
 INVALID_CANAL_SIE_VALUES = ["desconocido", "9999"]
 
+EMAIL_INVALID_CANAL_SUBJECT = (
+    "Solicitud de reenvío de factura con 'Canal' correcto"
+)
+
+EMAIL_INVALID_CANAL_BODY = (
+    "Estimado remitente,\n\n"
+    "No se ha podido reconocer el campo Canal / (SIE) / número contrato dentro de el pdf del asunto.\n"
+    "Por favor, revise si esta bien marcado este campo dentro del pdf y reenvíe la factura incluyendo "
+    "el Canal / (SIE) / número de contrato correcto para poder procesarla. Los términos anteriores se refieren "
+    "a un dígito de 4 cifras al cuál se le referencia el importe de la factura.\n\n"
+    "Muchas Gracias,\n"
+)
+
 SYSTEM_PROMPT_ANALYSIS = (
     "You are a smart OCR system designed to extract specific parameters from PDF content. "
     "Follow the detailed instructions provided and return ONLY a valid JSON object with the results, "
