@@ -1,3 +1,4 @@
+import os
 import logging
 import re
 from typing import Dict, List
@@ -9,6 +10,8 @@ from src.api_extractors.gmail_manager import GmailManager
 from src.api_extractors.ocr_extractor import GoogleOCRExtractor
 from src.api_extractors.openai_extractor import AIExtractor
 from src.api_extractors.sheets_manager import GoogleSheetsManager
+from src.config import ConfigurationManager
+from src.invoice_orchestrator.classes.invoice import Invoice
 from src.invoice_orchestrator.classes.problem import InvoiceProblem
 from src.invoice_orchestrator.utils.utils import get_field
 from src.utils.constants import CRITICAL_FIELDS_LINE_ITEMS, EXTRACTED_DATA_INVOICE_PARSER, EXTRACTED_DATA_OPENAI, \
@@ -23,13 +26,16 @@ class InvoiceOrchestrator:
 
     def __init__(self,
                  problem: InvoiceProblem,
+                 config: ConfigurationManager,
                  openai_extractor: AIExtractor,
                  ocr_extractor: GoogleOCRExtractor,
                  drive_manager: DriveManager,
                  sheets_manager: GoogleSheetsManager,
                  gmail_manager: GmailManager,
                  logger: logging.Logger = None):
+
         self.problem = problem
+        self.config = config
         self.openai_extractor = openai_extractor
         self.ocr_extractor = ocr_extractor
         self.drive_manager = drive_manager
@@ -45,6 +51,7 @@ class InvoiceOrchestrator:
         Formats all numeric values in a row to strings with a comma as the decimal separator.
         Non-numeric values are left unchanged. Converts None to empty strings.
         """
+
         def fmt_float(val):
             if isinstance(val, (float, int)):
                 return f"{val:.2f}".replace('.', ',')
@@ -58,11 +65,11 @@ class InvoiceOrchestrator:
         Critical fields: 'line_item/amount', 'line_item/quantity', 'line_item/unit_price'.
         """
         valid_fields = sum(1 for field in CRITICAL_FIELDS_LINE_ITEMS
-                          if line_items.get(field) not in [None, "", 0])
+                           if line_items.get(field) not in [None, "", 0])
         has_description = line_items.get('line_item/description') not in [None, ""]
         return valid_fields >= 2 and has_description
 
-    def process_invoice_orchestra(self, invoice):
+    def process_invoice_orchestra(self, invoice: Invoice):
         """
         Processes a single invoice:
         - Extracts OCR and OpenAI data.
@@ -86,7 +93,7 @@ class InvoiceOrchestrator:
             invoice.fr_proveedor = get_field(ocr_data, 'invoice_id', 'fr_proveedor')
             invoice.proveedor = get_field(ocr_data, 'supplier_name', 'proveedor')
             invoice.canal_sie = ("desconocido" if ocr_data.get("canal_sie") in INVALID_CANAL_SIE_VALUES
-                                else str(ocr_data.get("canal_sie", "")))
+                                 else str(ocr_data.get("canal_sie", "")))
             invoice.base = parse_currency(ocr_data.get("net_amount", ""))
             invoice.iva_eur = parse_currency(ocr_data.get("total_tax_amount", ""))
             invoice.total = parse_currency(ocr_data.get("total_amount", ""))
@@ -127,18 +134,20 @@ class InvoiceOrchestrator:
                 self.line_results.append(line_item)
                 self.logger.info(f"Added to line_results: {len(self.line_results)} items")
             else:
-                self.logger.debug(f"Line item skipped for {invoice.invoice_filename}: insufficient data or no description")
+                self.logger.debug(
+                    f"Line item skipped for {invoice.invoice_filename}: insufficient data or no description")
 
             # Envío automático de correo si canal_sie es "desconocido".
-            if invoice.canal_sie == "desconocido":
+            if (invoice.canal_sie == "desconocido") & self.config.auto_claim_canal:
                 self.logger.info(
                     f"Invoice {invoice.invoice_filename} has 'desconocido' in canal_sie. Sending notification email to {invoice.sender}.")
 
-                subject = f"{EMAIL_INVALID_CANAL_SUBJECT}: Revisar {invoice.invoice_filename}"
+                subject = f"{EMAIL_INVALID_CANAL_SUBJECT}: Revisar **{invoice.invoice_filename}**"
                 sent_message = self.gmail_manager.send_email(
                     recipient=invoice.sender,
                     subject=subject,
                     body_text=EMAIL_INVALID_CANAL_BODY,
+                    attachment_path=invoice.pdf_local_path,
                 )
                 self.logger.info(f"Notification email sent, message ID: {sent_message.get('id', 'N/A')}")
 
@@ -150,6 +159,17 @@ class InvoiceOrchestrator:
                 target_relative_path=target_relative_path
             )
             invoice.web_view_link = file_metadata.get("webViewLink", "")
+
+            # Generar preview y subirla a Drive
+            preview_path = self.drive_manager.generate_preview_image(invoice.pdf_local_path)
+            if preview_path:
+                # 1) Subimos el PNG generado
+                uploaded = self.drive_manager.upload_image(preview_path)
+                # 2) Dejamos en invoice.imagen sólo el nombre de fichero (para Sheets/AppSheet)
+                invoice.imagen = os.path.basename(preview_path)
+            else:
+                self.logger.warning(f"No se generó preview para {invoice.pdf_local_path}")
+                invoice.imagen = ""
 
         except Exception as e:
             self.logger.error(f"Error processing invoice {invoice.invoice_hash}: {e}", exc_info=True)
@@ -181,7 +201,8 @@ class InvoiceOrchestrator:
                     invoice.forma_pago,
                     invoice.due_date,
                     invoice.marca_temporal_ocr,
-                    invoice.invoice_hash
+                    invoice.invoice_hash,
+                    invoice.imagen,
                 ]))
             self.sheets_manager.append_row(rows_data=registro_rows, sheet_name="registro", sheet_range="A1")
             self.logger.info(f"Wrote {len(registro_rows)} rows to 'registro' sheet")
@@ -229,7 +250,7 @@ class InvoiceOrchestrator:
         # Process each invoice
         for invoice in self.problem.invoices:
             self.logger.info(f"Processing invoice: {invoice.invoice_filename}")
-            self.process_invoice_orchestra(invoice)
+            self.process_invoice_orchestra(invoice=invoice)
 
         # Write data to Google Sheets
         self.write_to_sheets()
@@ -243,5 +264,6 @@ class InvoiceOrchestrator:
             'ocr_raw': pd.DataFrame(self.raw_ocr_results),
             'line_raw': pd.DataFrame(self.line_results),
         }
-        self.logger.info(f"Returning solution with ocr_raw rows: {len(result['ocr_raw'])}, line_raw rows: {len(result['line_raw'])}")
+        self.logger.info(
+            f"Returning solution with ocr_raw rows: {len(result['ocr_raw'])}, line_raw rows: {len(result['line_raw'])}")
         return result

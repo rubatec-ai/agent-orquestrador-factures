@@ -129,7 +129,14 @@ class GoogleSheetsManager(BaseExtractor):
 
             headers = [col.strip() for col in values[0]]
             data = values[1:] if len(values) > 1 else []
-            return pd.DataFrame(data, columns=headers)
+
+            # Rellenar filas más cortas con valores vacíos
+            num_cols = len(headers)
+            data = [row + [None] * (num_cols - len(row)) for row in data]
+
+            df = pd.DataFrame(data, columns=headers)
+
+            return df
 
         except HttpError as e:
             self._logger.error(f"HTTP error reading data: {e}")
@@ -139,7 +146,7 @@ class GoogleSheetsManager(BaseExtractor):
             raise
 
     def append_row(self, rows_data: List[List], sheet_name: Optional[str] = None,
-                   sheet_range: Optional[str] = 'A:Z') -> bool:
+                   sheet_range: Optional[str] = 'A:P') -> bool:
         """
         Añade múltiples filas a la hoja especificada.
 

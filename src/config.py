@@ -38,7 +38,6 @@ class ConfigurationManager:
         _documentai_project_id (str): Google project ID for Document AI.
         _documentai_location (str): Location for Document AI.
         _documentai_processor_id (str): Processor ID for Document AI.
-        _documentai_input_file (str): Path to the input file for Document AI.
         _google_sheets_scopes (list): Scopes for Google Sheets.
         _sheet_id (str): Google Sheet ID.
         _sage_api_key (str): API key for Sage.
@@ -84,9 +83,9 @@ class ConfigurationManager:
 
         # Parámetros ETL
         self._google_credentials_json= self._data_directory /self.get_value("etl.google.credentials_json")
-        self._google_credentials_json_provisional= self._data_directory /self.get_value("etl.google.credentials_json_provisional")
         self._google_drive_scopes = self.get_value("etl.google.drive.scopes")
         self._google_drive_folder_id = self.get_value("etl.google.drive.drive_folder_id")
+        self._google_image_folder_id = self.get_value("etl.google.drive.image_folder_id")
         self._google_drive_processed_folder_id = self.get_value("etl.google.drive.processed_drive_folder_id")
         self._google_gmail_scopes = self.get_value("etl.google.gmail.scopes")
         self._google_gmail_client_secret_file =self._data_directory / self.get_value("etl.google.gmail.client_secret_file")
@@ -94,6 +93,9 @@ class ConfigurationManager:
         self._google_gmail_save_pdf_attachments_folder = self.get_value("etl.google.gmail.save_pdf_attachments_folder")
         self._google_gmail_start_date = self.get_value("etl.google.gmail.start_date")
         self._google_gmail_label = self.get_value("etl.google.gmail.label")
+
+        self._auto_claim_canal = self.get_value("etl.google.gmail.auto_claim_canal")
+
         self._gmail_user_email = self.get_value("etl.google.gmail.gmail_user_email")
         self._documentai_project_id = self.get_value("etl.google.documentai.project_id")
         self._documentai_location = self.get_value("etl.google.documentai.location")
@@ -168,10 +170,6 @@ class ConfigurationManager:
         return self._run_solver
 
     @property
-    def run_post_process(self):
-        return self._run_post_process
-
-    @property
     def logger_debug(self):
         return self._logger_debug
 
@@ -184,8 +182,8 @@ class ConfigurationManager:
         return self._export_solution
 
     @property
-    def export_post_process(self):
-        return self._export_post_process
+    def agent_model(self):
+        return self._agent_model
 
     @property
     def agent_model(self):
@@ -208,16 +206,16 @@ class ConfigurationManager:
         return self._google_credentials_json
 
     @property
-    def google_credentials_json_provisional(self):
-        return self._google_credentials_json_provisional
-
-    @property
     def google_drive_scopes(self):
         return self._google_drive_scopes
 
     @property
     def google_drive_folder_id(self):
         return self._google_drive_folder_id
+
+    @property
+    def google_image_folder_id(self):
+        return self._google_image_folder_id
 
     @property
     def google_drive_processed_folder_id(self):
@@ -246,6 +244,10 @@ class ConfigurationManager:
     @property
     def gmail_label(self):
         return self._google_gmail_label
+
+    @property
+    def auto_claim_canal(self):
+        return self._auto_claim_canal
 
     @property
     def gmail_user_email(self):

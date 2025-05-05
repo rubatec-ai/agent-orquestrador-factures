@@ -1,4 +1,7 @@
 import logging
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
 from typing import Dict, Optional, Tuple
 import pandas as pd
 import base64
@@ -145,8 +148,7 @@ class GmailManager(BaseExtractor):
                             filename = part.get("filename", "")
                             if filename and filename.lower().endswith(".pdf"):
                                 attachment_id = part.get("body", {}).get("attachmentId", "")
-                                local_path, hash_invoice = self._download_pdf_attachment(msg_id, attachment_id,
-                                                                                         filename)
+                                local_path, hash_invoice = self._download_pdf_attachment(msg_id, attachment_id,filename)
                                 attachments_data.append({
                                     "message_id": msg_id,
                                     "thread_id": thread_id,
@@ -264,21 +266,38 @@ class GmailManager(BaseExtractor):
             # Si no se puede parsear, se devuelve el string original (o podrías retornar None).
             return date_str
 
-    def send_email(self, recipient: str, subject: str, body_text: str, thread_id: str = None):
-        # Construir el mensaje MIME
-        message = MIMEText(body_text)
+    def send_email(self, recipient: str, subject: str, body_text: str, thread_id: str = None,
+                   attachment_path: str = None):
+        # Crear un mensaje multipart
+        message = MIMEMultipart()
         _, recipient_email = parseaddr(recipient)
         message['to'] = recipient_email
         message['subject'] = subject
-        # Actualmente no se usa nunca esta lógica
         if thread_id:
             message['In-Reply-To'] = thread_id
             message['References'] = thread_id
-        # Codificar el mensaje en base64
+
+        # Adjuntar el cuerpo del mensaje como parte de texto
+        text_part = MIMEText(body_text, "plain")
+        message.attach(text_part)
+
+        # Si se provee una ruta para el adjunto y el archivo existe, agregarlo
+        if attachment_path and os.path.exists(attachment_path):
+            filename = os.path.basename(attachment_path)
+            with open(attachment_path, "rb") as f:
+                attachment_data = f.read()
+            attachment_part = MIMEBase("application", "octet-stream")
+            attachment_part.set_payload(attachment_data)
+            encoders.encode_base64(attachment_part)
+            attachment_part.add_header("Content-Disposition", f"attachment; filename={filename}")
+            message.attach(attachment_part)
+
+        # Codificar el mensaje completo en base64
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
         message_body = {'raw': raw_message}
         if thread_id:
             message_body['threadId'] = thread_id
+
         # Enviar el mensaje usando la API de Gmail
         sent_message = self._service.users().messages().send(userId='me', body=message_body).execute()
         return sent_message

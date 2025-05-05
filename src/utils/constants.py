@@ -19,10 +19,12 @@ MAPPING_RENAME_COL_REGISTRO = {
     'Forma Pago': ('forma_pago', str),
     'Fecha Vencimento': ('data_venciment', 'date'),
     'Marca Temporal OCR': ('marca_temporal_ocr', 'datetime'),
-    'md5Checksum': ('md5Checksum', str),
-    'Sage - Serie': ('serie', str),
-    'Sage - Num Factura': ('fr', str),
-    'Num Factura RUBATEC': ('fr_rubatec', str)
+    'Imagen': ('image', str),
+    'Comptabilitzada': ('supervisada', str),
+    'Marca Temporal Comptabilitzada': ('marca_temporal_supervisada', 'datetime'),
+    'Devolver factura': ('devuelta', str),
+    'Marca Temporal Devuelta': ('marca_temporal_devuelta', 'datetime'),
+    'Motivo Devolución': ('motivo_devuelta', str),
 }
 
 EXTRACTED_DATA_INVOICE_PARSER = {
@@ -71,17 +73,21 @@ EXTRACTED_DATA_OPENAI = ['line_item', 'vat', 'marca_temporal_ocr', 'text', 'cana
 
 INVALID_CANAL_SIE_VALUES = ["desconocido", "9999"]
 
-EMAIL_INVALID_CANAL_SUBJECT = (
-    "Solicitud de reenvío de factura con 'Canal' correcto"
-)
+EMAIL_INVALID_CANAL_SUBJECT = "Falta número de contrato (Canal/SIE) en factura"
 
 EMAIL_INVALID_CANAL_BODY = (
     "Estimado remitente,\n\n"
-    "No se ha podido reconocer el campo Canal / (SIE) / número contrato dentro de el pdf del asunto.\n"
-    "Por favor, revise si esta bien marcado este campo dentro del pdf y reenvíe la factura incluyendo "
-    "el Canal / (SIE) / número de contrato correcto para poder procesarla. Los términos anteriores se refieren "
-    "a un dígito de 4 cifras al cuál se le referencia el importe de la factura.\n\n"
-    "Muchas Gracias,\n"
+    "Hemos detectado que en el PDF de la factura no se ha identificado el campo 'Canal' o número de contrato interno (SIE), "
+    "el cual debe ser un código de 4 dígitos que asigna el importe de la factura.\n\n"
+    "Para corregir este problema, por favor proceda de una de las siguientes maneras:\n\n"
+    "1. Reenvíe la factura adjuntando el PDF modificado en el que se incluya correctamente el campo 'Canal' (SIE).\n\n"
+    "2. Responda a ESTE CORREO o haga uno nuevo con el pdf adjunto indicando el número de contrato en el asunto "
+    "ó cuerpo del mensaje, siguiendo el siguiente formato:\n\n"
+    "    Ejemplo de asunto: #1234 Factura resuelta\n\n"
+    "    Ejemplo de cuerpo del mensaje:\n"
+    "        La factura adjunta en este correo se debe asignar al canal #1234 (SIE).\n\n"
+    "Donde '#' introduce a '1234' que es el número de contrato (SIE) correspondiente a la factura.\n\n"
+    "Muchas gracias,\n"
 )
 
 SYSTEM_PROMPT_ANALYSIS = (
@@ -89,7 +95,6 @@ SYSTEM_PROMPT_ANALYSIS = (
     "Follow the detailed instructions provided and return ONLY a valid JSON object with the results, "
     "without any additional commentary or explanation."
 )
-
 
 PROMPT_TASK = (
     "Extract the following parameters from the provided PDF text according to the instructions below. "
@@ -112,10 +117,13 @@ PARAMETERS_TO_SEARCH = {
         "If no valid identifier is found, return 'desconocido'."
     ),
     "fr_proveedor": (
-        "This is the invoice number used by the supplier to identify the invoice." 
-        "It CAN NOT start with FR. "
-        "Most of the time, these are large identifiers using numbers. "
-        "If not found, write 'desconocido'."
+        "The supplier's own invoice identification number. "
+        "It MUST NOT start with 'FR' as those are our internal reference numbers. "
+        "Look for terms like 'Número Factura' near the identifier. "
+        "These typically appear as numeric or alphanumeric codes in various formats depending on the supplier. "
+        "Examples: 61557, F/0000340, A2425209815, 9512419314, A000172950, 25F0016633, F250260, 21250130030005999. "
+        "Avoid identifiers starting with FRXX-XXX (X are digits) format as those are our internal references, not the supplier's. "
+        "If not found, return 'desconocido'."
     ),
     "proveedor": (
         "RUBATEC always receives the invoice, so IS NOT the supplier! "

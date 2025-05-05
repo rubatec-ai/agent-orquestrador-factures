@@ -158,13 +158,16 @@ class MainProcess:
 
         # Step 1: Initialize Problem
         self._logger = logging.getLogger("Problem")
-        self._logger.info("Initializing the Problem with scope and master data.")
+        self._logger.info("Initializing the Problem with scope.")
 
         invoice_problem = InvoiceProblem(data_model=self._data_model)
 
-        # Initialize the orchestrator with the register dataframe (e.g., _data_model["register"])
+        # Initialize the orchestrator with the register dataframe)
+        self._logger = logging.getLogger("InvoiceOrchestrator")
+        self._logger.info("Running the InvoiceOrchestrator.")
         orchestrator = InvoiceOrchestrator(
             problem=invoice_problem,
+            config=self._config,
             openai_extractor=self._openai_extractor,
             ocr_extractor=self._ocr_extractor,
             sheets_manager=self._sheets_manager,

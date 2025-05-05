@@ -22,12 +22,12 @@
   "etl": {
     "google": {
       "credentials_json": "orquestradorfactures-a95e76ac4624.json",
-      "credentials_json_provisional": "makeautofacturas-a32bced4f7ec.json",
       "drive": {
         "scopes": [
           "https://www.googleapis.com/auth/drive"
         ],
         "drive_folder_id": "1dne2uuG2IU1Gy3RI8-4ehEVwYb3C8CUy",
+        "image_folder_id": "1CMO82b8466US0HfgMjJsM7BlM7HNDod2",
         "processed_drive_folder_id": "1aCmc9WM8PVLnvZZPZoXo8yY3DKJKyInd"
       },
       "gmail": {
@@ -40,7 +40,8 @@
         "save_pdf_attachments_folder": "C:/temp/gmail_pdfs",
         "gmail_user_email": "factures@rubatec.cat",
         "start_date": "2025-03-01",
-        "label": "INBOX"
+        "label": "INBOX",
+        "auto_claim_canal": false
       },
       "documentai": {
         "project_id": "orquestradorfactures",
@@ -64,7 +65,7 @@
   "ai_parser": {
     "agent": {
       "model": "gpt-4o-2024-08-06",
-      "temperature": 0.15,
+      "temperature": 0.05,
       "max_tokens": 75
     }
   }

@@ -37,6 +37,8 @@ class Invoice:
 
         # Enlaces a facturas en Drive
         self.web_view_link = None
+        # Enlaces foto en Drive
+        self.imagen = None
 
     def __repr__(self):
         return (f"Invoice(hash={self.invoice_hash}, "

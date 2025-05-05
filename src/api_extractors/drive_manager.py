@@ -2,10 +2,10 @@ import logging
 from typing import Dict, List, Optional
 import os
 import pandas as pd
-from logging import Logger
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from pdf2image import convert_from_path
 
 from src.config import ConfigurationManager
 from src.api_extractors.base_extractor import BaseExtractor
@@ -27,7 +27,7 @@ class DriveManager(BaseExtractor):
     """
 
     def __init__(self, config: ConfigurationManager) -> None:
-        self._credentials_path = config._google_credentials_json
+        self._credentials_path = config.google_credentials_json
         self._scopes = config.google_drive_scopes
         credentials = service_account.Credentials.from_service_account_file(
             self._credentials_path, scopes=self._scopes
@@ -35,6 +35,7 @@ class DriveManager(BaseExtractor):
         self._service = build('drive', 'v3', credentials=credentials)
         # Folder ID base donde se realizarán las operaciones
         self._folder_id = config.google_drive_folder_id
+        self._image_folder_id = config.google_image_folder_id
 
         self._logger  = logging.getLogger("DriveManager")
         self._logger .info('Starting Drive Manager..')
@@ -182,3 +183,122 @@ class DriveManager(BaseExtractor):
         self._logger.info(f"Archivo subido: {file.get('name')} (ID: {file.get('id')}) en carpeta {target_folder_id}")
 
         return file
+
+    def generate_preview_image(self, pdf_path: str, output_path: Optional[str] = None) -> str:
+        """
+        Genera una imagen PNG de la 1ª página del PDF.
+        Devuelve la ruta al PNG. Lanza excepción si falla.
+        """
+        # 1) Validar existencia
+        if not pdf_path or not os.path.isfile(pdf_path):
+            msg = f"[DriveManager] PDF no encontrado: {pdf_path}"
+            self._logger.error(msg)
+            raise FileNotFoundError(msg)
+
+        # 2) Determinar output_path y garantizar carpeta
+        output_path = output_path or os.path.splitext(pdf_path)[0] + "_preview.png"
+        out_dir = os.path.dirname(output_path)
+        if out_dir and not os.path.exists(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+
+        # 3) Convertir primera página
+        try:
+            images = convert_from_path(
+                pdf_path,
+                first_page=1,
+                last_page=1,
+                size=(1240, 1754)  # ajusta si hace falta
+            )
+        except Exception as e:
+            msg = f"[DriveManager] Error convirtiendo PDF a imagen ({pdf_path}): {e}"
+            self._logger.error(msg)
+            raise
+
+        if not images:
+            msg = f"[DriveManager] No se obtuvo ninguna imagen de {pdf_path}"
+            self._logger.error(msg)
+            raise RuntimeError(msg)
+
+        # 4) Guardar PNG
+        try:
+            images[0].save(output_path, "PNG")
+        except Exception as e:
+            msg = f"[DriveManager] Error guardando preview en {output_path}: {e}"
+            self._logger.error(msg)
+            raise
+
+        self._logger.info(f"[DriveManager] Preview generado en: {output_path}")
+        return output_path
+
+    def upload_image(self, file_path: str) -> dict:
+        """
+        Sube un PNG a Google Drive (en image_folder_id), hace que sea público
+        y devuelve la metadata del archivo con webContentLink.
+
+        Pasos:
+        1) Validar existencia local.
+        2) Crear MediaFileUpload.
+        3) Crear el archivo en Drive pidiendo webContentLink.
+        4) Añadir permiso 'anyoneWithLink' para que la imagen sea accesible públicamente.
+        5) Cerrar descriptor para liberar el fichero en Windows.
+        6) Borrar el archivo local.
+        7) Devolver metadata incluyendo 'webContentLink'.
+        """
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"Imagen no existe: {file_path}")
+
+        filename = os.path.basename(file_path)
+        metadata = {
+            "name": filename,
+            "parents": [self._image_folder_id]
+        }
+
+        media = MediaFileUpload(file_path, mimetype="image/png")
+        try:
+            uploaded = (
+                self._service.files()
+                .create(
+                    body=metadata,
+                    media_body=media,
+                    fields="id,name,parents,webViewLink,webContentLink",
+                    supportsAllDrives=True
+                )
+                .execute()
+            )
+            # Asegurarnos de que el fichero quede público
+            try:
+                self._service.permissions() \
+                    .create(
+                    fileId=uploaded["id"],
+                    body={"type": "anyone", "role": "reader"},
+                    supportsAllDrives=True
+                ) \
+                    .execute()
+            except Exception as perm_err:
+                self._logger.warning(f"No se pudo establecer permiso público: {perm_err}")
+
+            # Liberar descriptor abierto por MediaFileUpload en Windows
+            try:
+                media._fd.close()
+            except Exception:
+                pass
+
+        except Exception as e:
+            self._logger.error(f"[DriveManager] Error subiendo imagen {file_path}: {e}")
+            raise
+
+        self._logger.info(
+            f"[DriveManager] Imagen subida: {uploaded['name']} (ID: {uploaded['id']})"
+        )
+
+        # Borrar local
+        try:
+            os.remove(file_path)
+            self._logger.info(f"[DriveManager] Imagen local eliminada: {file_path}")
+        except Exception as e:
+            self._logger.warning(f"[DriveManager] No se pudo eliminar localmente {file_path}: {e}")
+
+        return uploaded
+
+
+
