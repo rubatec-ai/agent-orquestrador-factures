@@ -54,7 +54,7 @@ jobs:
 
       # 6. Subir los resultados como artifacts
       - name: Subir artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: datos-y-logs
           path: |
