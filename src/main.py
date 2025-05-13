@@ -32,10 +32,10 @@ class MainProcess:
         _problem (object): Placeholder for problem-specific logic.
     """
 
-    def __init__(self, streamlit=False):
-        self._config = ConfigurationManager(streamlit=streamlit)
+    def __init__(self):
+        self._config = ConfigurationManager()
         self._io = IOHandler(self._config)
-        self._logger, self._log_stream = self._initialize_logger(streamlit)
+        self._logger, self._log_stream = self._initialize_logger()
 
         self._gmail_manager = GmailManager(config=self._config)
         self._drive_manager = DriveManager(config=self._config)
@@ -53,12 +53,9 @@ class MainProcess:
         self._problem = None
         self._solution = {}
 
-    def _initialize_logger(self, streamlit: bool) -> tuple[logging.Logger, io.StringIO | None]:
+    def _initialize_logger(self) ->  logging.Logger:
         """
         Configure the logger instance.
-
-        Args:
-            streamlit (bool): Whether to integrate with Streamlit.
 
         Returns:
             tuple: Configured logger and optional StringIO stream for logs.
@@ -76,19 +73,7 @@ class MainProcess:
         logging.getLogger("googleapiclient.discovery").setLevel(logging.WARNING)
         logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.WARNING)
 
-        # Add a StringIO handler for Streamlit if enabled
-        log_stream = None
-        if streamlit:
-            log_stream = io.StringIO()
-            stream_handler = logging.StreamHandler(log_stream)
-            stream_handler.setLevel(log_level)
-            stream_handler.setFormatter(logging.Formatter(
-                "%(asctime)s - %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S"
-            ))
-            logger.addHandler(stream_handler)
-
-        return logger, log_stream
+        return logger
 
     def _setup_file_handler(self) -> logging.FileHandler:
         """

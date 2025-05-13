@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 from dotenv import load_dotenv
-import streamlit as st
 
 
 class ConfigurationManager:
@@ -43,18 +42,14 @@ class ConfigurationManager:
         _sage_api_key (str): API key for Sage.
         _sage_endpoint (str): Endpoint URL for Sage.
         _api_clients (dict): Additional API clients parameters.
-        _streamlit (bool): Flag indicating if se usa streamlit.
         _scenario_name (str): Scenario name with timestamp.
     """
 
-    def __init__(self, streamlit: bool = False):
+    def __init__(self):
         load_dotenv()
         root_path = self.get_project_root()
 
-        if streamlit:
-            self.config_filepath = st.session_state["json_file_path"]
-        else:
-            self.config_filepath = os.path.join(root_path, 'config/config.json')
+        self.config_filepath = os.path.join(root_path, 'config/config.json')
 
         self._config = self.read_config()
 
@@ -152,7 +147,6 @@ class ConfigurationManager:
 
         self._api_clients = self.get_value("api_clients.param_group")
 
-        self._streamlit = streamlit
         self._scenario_name = f"{self.get_value('directories.scenario_name')}_{self._timestamp}"
 
     @staticmethod
@@ -329,6 +323,3 @@ class ConfigurationManager:
     def api_clients(self):
         return self._api_clients
 
-    @property
-    def streamlit(self):
-        return self._streamlit
