@@ -35,15 +35,27 @@ jobs:
       # 4. Reconstruir credenciales desde Secrets
       - name: Reconstruir client_secret.json
         run: |
-          echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > client_secret.json
+          printf '%s\n' "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > client_secret.json
 
       - name: Reconstruir service_account.json
         run: |
-          echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" > orquestrador-459013-90b46b746190.json
+          printf '%s\n' "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" > orquestrador-459013-90b46b746190.json
 
       - name: Reconstruir token.pickle de Gmail
         run: |
-          echo "${{ secrets.GMAIL_TOKEN_PICKLE_B64 }}" | base64 -d > token.pickle
+          # Elimina saltos de línea accidentales y decodifica Base64
+          printf '%s' "${{ secrets.GMAIL_TOKEN_PICKLE_B64 }}" | tr -d '\n' | base64 -d > token.pickle
+
+      - name: Comprobar credenciales
+        run: |
+          echo "Tamaños de ficheros de credenciales:\n"
+          ls -lh client_secret.json orquestrador-459013-90b46b746190.json token.pickle
+          for f in client_secret.json orquestrador-459013-90b46b746190.json token.pickle; do
+            if [ ! -s "$f" ]; then
+              echo "ERROR: $f está vacío o no existe";
+              exit 1;
+            fi
+          done
 
       # 5. Ejecutar tu script principal
       - name: Ejecutar main.py
