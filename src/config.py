@@ -49,22 +49,50 @@ class ConfigurationManager:
 
     def __init__(self, streamlit: bool = False):
         load_dotenv()
-
         root_path = self.get_project_root()
+
         if streamlit:
             self.config_filepath = st.session_state["json_file_path"]
         else:
             self.config_filepath = os.path.join(root_path, 'config/config.json')
 
-        self._timestamp = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
         self._config = self.read_config()
 
-        base_path = Path("C:/Users") / getpass.getuser()
-        self._main_path = base_path / self.get_value("directories.main_path")
-        self._data_directory = self._main_path / self.get_value("directories.data_directory")
-        self._transform_export_directory = self._main_path / self.get_value("directories.transform_export_directory")
-        self._logs_directory = self._main_path / self.get_value("directories.logs_directory")
-        self._export_directory = self._main_path / self.get_value("directories.export_directory")
+        # justo tras leer el config.json y root_path:
+        is_ci = os.getenv("GITHUB_ACTIONS") == "true"
+
+        if is_ci:
+            # En Actions: todos los datos van bajo /<repo>/data
+            data_root = root_path / "data"
+            # Asegúrate de que existen
+            for d in (data_root,):
+                d.mkdir(parents=True, exist_ok=True)
+
+            self._main_path = data_root
+            self._data_directory = data_root / self.get_value("directories.data_directory")
+            self._transform_export_directory = data_root / self.get_value("directories.transform_export_directory")
+            self._logs_directory = data_root / self.get_value("directories.logs_directory")
+            self._export_directory = data_root / self.get_value("directories.export_directory")
+        else:
+            # Local: usa C:/Users/... + tu directories.main_path tal cual
+            user_home = Path("C:/Users") / getpass.getuser()
+            self._main_path = user_home / self.get_value("directories.main_path")
+            self._data_directory = self._main_path / self.get_value("directories.data_directory")
+            self._transform_export_directory = self._main_path / self.get_value(
+                "directories.transform_export_directory")
+            self._logs_directory = self._main_path / self.get_value("directories.logs_directory")
+            self._export_directory = self._main_path / self.get_value("directories.export_directory")
+
+        # Y en ambos casos, crea las carpetas si no existen:
+        for d in (
+                self._data_directory,
+                self._transform_export_directory,
+                self._logs_directory,
+                self._export_directory
+        ):
+            d.mkdir(parents=True, exist_ok=True)
+
+        self._timestamp = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
         self._run_name = self.get_value('execution.run_name')
         self._run_etl = self.get_value('execution.run_etl')
@@ -82,13 +110,30 @@ class ConfigurationManager:
         self._agent_max_tokens = self.get_value('ai_parser.agent.max_tokens')
 
         # Parámetros ETL
-        self._google_credentials_json= self._data_directory /self.get_value("etl.google.credentials_json")
+        cred_fn = self.get_value("etl.google.credentials_json")
+        self._google_credentials_json = (
+            # si estamos en CI busco directamente en project_root/<cred_fn>
+            root_path / cred_fn
+            # si no, en tu carpeta de inputs local
+            if is_ci else self._data_directory / cred_fn
+        )
+
+        gmail_secret_fn = self.get_value("etl.google.gmail.client_secret_file")
+        self._google_gmail_client_secret_file = (
+            root_path / gmail_secret_fn
+            if is_ci else self._data_directory / gmail_secret_fn
+        )
+
+        gmail_token_fn = self.get_value("etl.google.gmail.gmail_token_file")
+        self._google_gmail_token_file = (
+            root_path / gmail_token_fn
+            if is_ci else self._data_directory / gmail_token_fn
+        )
+
         self._google_drive_scopes = self.get_value("etl.google.drive.scopes")
         self._google_drive_folder_id = self.get_value("etl.google.drive.drive_folder_id")
         self._google_image_folder_id = self.get_value("etl.google.drive.image_folder_id")
         self._google_gmail_scopes = self.get_value("etl.google.gmail.scopes")
-        self._google_gmail_client_secret_file =self._data_directory / self.get_value("etl.google.gmail.client_secret_file")
-        self._google_gmail_token_file = self._data_directory / self.get_value("etl.google.gmail.gmail_token_file")
         self._google_gmail_save_pdf_attachments_folder = self.get_value("etl.google.gmail.save_pdf_attachments_folder")
         self._google_gmail_start_date = self.get_value("etl.google.gmail.start_date")
         self._google_gmail_label = self.get_value("etl.google.gmail.label")

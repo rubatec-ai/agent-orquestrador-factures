@@ -5,7 +5,7 @@
     "logs_directory": "04_Logs",
     "transform_export_directory": "02_TransformedData",
     "export_directory": "03_Outputs",
-    "scenario_name": "mvp"
+    "scenario_name": "fase1_lectura"
   },
   "execution": {
     "run_name": "",
