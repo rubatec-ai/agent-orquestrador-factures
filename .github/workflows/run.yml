@@ -32,7 +32,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. Reconstruir credenciales desde Secrets
+      # 4. Verificar que los Secrets estén presentes
+      - name: Verificar nombres y longitud de secrets
+        shell: bash
+        run: |
+          echo "Longitud de GOOGLE_CLIENT_SECRET_JSON: ${#GOOGLE_CLIENT_SECRET_JSON}"
+          echo "Longitud de GOOGLE_SERVICE_ACCOUNT_JSON: ${#GOOGLE_SERVICE_ACCOUNT_JSON}"
+          echo "Longitud de GMAIL_TOKEN_PICKLE_B64: ${#GMAIL_TOKEN_PICKLE_B64}"
+          for v in GOOGLE_CLIENT_SECRET_JSON GOOGLE_SERVICE_ACCOUNT_JSON GMAIL_TOKEN_PICKLE_B64; do
+            if [ -z "${!v}" ]; then
+              echo "ERROR: Secret '$v' no definido o vacío";
+              exit 1;
+            fi
+          done
+
+      # 5. Reconstruir credenciales desde Secrets
       - name: Reconstruir client_secret.json
         run: |
           printf '%s\n' "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > client_secret.json
@@ -46,10 +60,11 @@ jobs:
           # Elimina saltos de línea accidentales y decodifica Base64
           printf '%s' "${{ secrets.GMAIL_TOKEN_PICKLE_B64 }}" | tr -d '\n' | base64 -d > token.pickle
 
-      - name: Comprobar credenciales
+      # 6. Comprobar credenciales reconstruidas
+      - name: Comprobar ficheros de credenciales
         run: |
-          echo "Tamaños de ficheros de credenciales:\n"
-          ls -lh client_secret.json orquestrador-459013-90b46b746190.json token.pickle
+          echo "Tamaños de ficheros de credenciales:";
+          ls -lh client_secret.json orquestrador-459013-90b46b746190.json token.pickle;
           for f in client_secret.json orquestrador-459013-90b46b746190.json token.pickle; do
             if [ ! -s "$f" ]; then
               echo "ERROR: $f está vacío o no existe";
@@ -57,14 +72,14 @@ jobs:
             fi
           done
 
-      # 5. Ejecutar tu script principal
+      # 7. Ejecutar tu script principal
       - name: Ejecutar main.py
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python -m src.main
 
-      # 6. Subir los resultados como artifacts
+      # 8. Subir los resultados como artifacts
       - name: Subir artifacts
         uses: actions/upload-artifact@v4
         with:
