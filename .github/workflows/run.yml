@@ -32,13 +32,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. Verificar que los Secrets estén presentes
-      - name: Verificar nombres y longitud de secrets
+      # 4. Verificar que los Secrets estén presentes y no vacíos
+      - name: Verificar secretos
         shell: bash
+        env:
+          GOOGLE_CLIENT_SECRET_JSON: ${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GMAIL_TOKEN_PICKLE_B64: ${{ secrets.GMAIL_TOKEN_PICKLE_B64 }}
         run: |
-          echo "Longitud de GOOGLE_CLIENT_SECRET_JSON: ${#GOOGLE_CLIENT_SECRET_JSON}"
-          echo "Longitud de GOOGLE_SERVICE_ACCOUNT_JSON: ${#GOOGLE_SERVICE_ACCOUNT_JSON}"
-          echo "Longitud de GMAIL_TOKEN_PICKLE_B64: ${#GMAIL_TOKEN_PICKLE_B64}"
+          echo "Bytes de GOOGLE_CLIENT_SECRET_JSON: $(echo -n "$GOOGLE_CLIENT_SECRET_JSON" | wc -c)"
+          echo "Bytes de GOOGLE_SERVICE_ACCOUNT_JSON: $(echo -n "$GOOGLE_SERVICE_ACCOUNT_JSON" | wc -c)"
+          echo "Bytes de GMAIL_TOKEN_PICKLE_B64: $(echo -n "$GMAIL_TOKEN_PICKLE_B64" | wc -c)"
           for v in GOOGLE_CLIENT_SECRET_JSON GOOGLE_SERVICE_ACCOUNT_JSON GMAIL_TOKEN_PICKLE_B64; do
             if [ -z "${!v}" ]; then
               echo "ERROR: Secret '$v' no definido o vacío";
@@ -46,7 +50,7 @@ jobs:
             fi
           done
 
-      # 5. Reconstruir credenciales desde Secrets
+      # 5. Reconstruir ficheros de credenciales desde los Secrets
       - name: Reconstruir client_secret.json
         run: |
           printf '%s\n' "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > client_secret.json
@@ -57,10 +61,9 @@ jobs:
 
       - name: Reconstruir token.pickle de Gmail
         run: |
-          # Elimina saltos de línea accidentales y decodifica Base64
           printf '%s' "${{ secrets.GMAIL_TOKEN_PICKLE_B64 }}" | tr -d '\n' | base64 -d > token.pickle
 
-      # 6. Comprobar credenciales reconstruidas
+      # 6. Comprobar que los ficheros no están vacíos
       - name: Comprobar ficheros de credenciales
         run: |
           echo "Tamaños de ficheros de credenciales:";
