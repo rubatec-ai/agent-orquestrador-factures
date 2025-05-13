@@ -6,6 +6,11 @@ on:
     - cron: '55 5-23/2 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
 jobs:
   run-script:
     runs-on: ubuntu-latest
