@@ -35,7 +35,7 @@ class MainProcess:
     def __init__(self):
         self._config = ConfigurationManager()
         self._io = IOHandler(self._config)
-        self._logger, self._log_stream = self._initialize_logger()
+        self._logger = self._initialize_logger()
 
         self._gmail_manager = GmailManager(config=self._config)
         self._drive_manager = DriveManager(config=self._config)
