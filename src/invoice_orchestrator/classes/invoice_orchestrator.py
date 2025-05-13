@@ -90,8 +90,9 @@ class InvoiceOrchestrator:
             self.logger.debug(f"OCR data extracted for {invoice.invoice_filename}: {ocr_data}")
 
             # Update invoice fields
-            invoice.fr_proveedor = get_field(ocr_data, 'invoice_id', 'fr_proveedor')
-            invoice.proveedor = get_field(ocr_data, 'supplier_name', 'proveedor')
+            invoice.fr_proveedor = get_field(ocr_data, ocr_key='invoice_id', openai_key='fr_proveedor')
+            invoice.name_proveedor = get_field(ocr_data, ocr_key= 'supplier_name', openai_key= 'proveedor')
+            invoice.id_proveedor = get_field(ocr_data, ocr_key= 'supplier_tax_id', openai_key= 'supplier_id')
             invoice.canal_sie = ("desconocido" if ocr_data.get("canal_sie") in INVALID_CANAL_SIE_VALUES
                                  else str(ocr_data.get("canal_sie", "")))
             invoice.base = parse_currency(ocr_data.get("net_amount", ""))
@@ -104,7 +105,7 @@ class InvoiceOrchestrator:
             else:
                 invoice.iva_pct = None
 
-            invoice.forma_pago = get_field(ocr_data, "payment_terms", "forma_pago")  # Fixed syntax error
+            invoice.forma_pago = get_field(ocr_data, ocr_key="payment_terms", openai_key="forma_pago")  # Fixed syntax error
             invoice.due_date = ocr_data.get("due_date")
             invoice.marca_temporal_ocr = ocr_data.get("marca_temporal_ocr")
 
@@ -121,7 +122,7 @@ class InvoiceOrchestrator:
             if self.is_valid_line_item(invoice.line_items):
                 line_item = {
                     'filename': invoice.invoice_filename,
-                    'supplier': invoice.proveedor,
+                    'supplier': invoice.name_proveedor,
                     'line_item/product_code': invoice.line_items.get('line_item/product_code', ""),
                     'line_item/unit': str(invoice.line_items.get('line_item/unit', "UN")),
                     'line_item/description': invoice.line_items.get('line_item/description', ""),
@@ -152,11 +153,13 @@ class InvoiceOrchestrator:
                 self.logger.info(f"Notification email sent, message ID: {sent_message.get('id', 'N/A')}")
 
             # Upload PDF to Google Drive
-            canal = invoice.canal_sie if invoice.canal_sie else "desconocido"
-            target_relative_path = canal if re.fullmatch(r"\d{4}", canal) else "desconocido"
+
+            #canal = invoice.canal_sie if invoice.canal_sie else "desconocido"
+            #target_relative_path = canal if re.fullmatch(r"\d{4}", canal) else "desconocido"
+
             file_metadata = self.drive_manager.upload_pdf(
                 invoice.pdf_local_path,
-                target_relative_path=target_relative_path
+                target_relative_path=None
             )
             invoice.web_view_link = file_metadata.get("webViewLink", "")
 
@@ -189,7 +192,8 @@ class InvoiceOrchestrator:
                 registro_rows.append(self.format_row([
                     invoice.web_view_link,
                     invoice.fr_proveedor,
-                    invoice.proveedor,
+                    invoice.name_proveedor,
+                    invoice.id_proveedor,
                     invoice.date_received.strftime("%Y-%m-%d %H:%M:%S") if invoice.date_received else "",
                     invoice.sender,
                     invoice.invoice_filename,

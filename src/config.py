@@ -86,7 +86,6 @@ class ConfigurationManager:
         self._google_drive_scopes = self.get_value("etl.google.drive.scopes")
         self._google_drive_folder_id = self.get_value("etl.google.drive.drive_folder_id")
         self._google_image_folder_id = self.get_value("etl.google.drive.image_folder_id")
-        self._google_drive_processed_folder_id = self.get_value("etl.google.drive.processed_drive_folder_id")
         self._google_gmail_scopes = self.get_value("etl.google.gmail.scopes")
         self._google_gmail_client_secret_file =self._data_directory / self.get_value("etl.google.gmail.client_secret_file")
         self._google_gmail_token_file = self._data_directory / self.get_value("etl.google.gmail.gmail_token_file")
@@ -216,10 +215,6 @@ class ConfigurationManager:
     @property
     def google_image_folder_id(self):
         return self._google_image_folder_id
-
-    @property
-    def google_drive_processed_folder_id(self):
-        return self._google_drive_processed_folder_id
 
     @property
     def google_gmail_scopes(self):

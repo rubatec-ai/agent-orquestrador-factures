@@ -22,7 +22,8 @@ class Invoice:
 
         # Campos que se rellenarán con OCR y OpenAI
         self.fr_proveedor = None
-        self.proveedor = None
+        self.name_proveedor = None
+        self.id_proveedor = None
         self.canal_sie = None
         self.base = None
         self.iva_pct = None

@@ -146,7 +146,7 @@ class GoogleSheetsManager(BaseExtractor):
             raise
 
     def append_row(self, rows_data: List[List], sheet_name: Optional[str] = None,
-                   sheet_range: Optional[str] = 'A:P') -> bool:
+                   sheet_range: Optional[str] = 'A:Q') -> bool:
         """
         Añade múltiples filas a la hoja especificada.
 

@@ -12,6 +12,7 @@
     "run_etl": true,
     "run_solver": true
   },
+
   "logger": {
     "debug": true
   },
@@ -21,14 +22,13 @@
   },
   "etl": {
     "google": {
-      "credentials_json": "orquestradorfactures-a95e76ac4624.json",
+      "credentials_json": "orquestrador-459013-90b46b746190.json",
       "drive": {
         "scopes": [
           "https://www.googleapis.com/auth/drive"
         ],
-        "drive_folder_id": "1dne2uuG2IU1Gy3RI8-4ehEVwYb3C8CUy",
-        "image_folder_id": "1CMO82b8466US0HfgMjJsM7BlM7HNDod2",
-        "processed_drive_folder_id": "1aCmc9WM8PVLnvZZPZoXo8yY3DKJKyInd"
+        "drive_folder_id": "19jwZEdhP2bkwCDhI7jGdlJPUG6AelS0a",
+        "image_folder_id": "19jwZEdhP2bkwCDhI7jGdlJPUG6AelS0a"
       },
       "gmail": {
         "scopes": [
@@ -38,21 +38,21 @@
         "client_secret_file": "client_secret.json",
         "gmail_token_file": "token.pickle",
         "save_pdf_attachments_folder": "C:/temp/gmail_pdfs",
-        "gmail_user_email": "factures@rubatec.cat",
-        "start_date": "2025-03-01",
+        "gmail_user_email": "factura@rubatec.cat",
+        "start_date": "2025-05-09",
         "label": "INBOX",
         "auto_claim_canal": false
       },
       "documentai": {
-        "project_id": "orquestradorfactures",
+        "project_id": "orquestrador-459013",
         "location": "eu",
-        "processor_id": "edaa9513e5d8a4c4"
+        "processor_id": "81c39563b40c3df5"
       },
       "sheets": {
         "scopes": [
           "https://www.googleapis.com/auth/spreadsheets"
         ],
-        "sheet_id": "1GBLFieQ_kvDoGSRr5M3Mu47SBIPApIK8jE14J8A3ufc",
+        "sheet_id": "1ImSIpPnMeGFsdORqAFQTE3f8u0B6Z2QD3_e1ugH1jE8",
         "sheet_name_registro": "registro",
         "sheet_name_lines" : "line_items"
       }
