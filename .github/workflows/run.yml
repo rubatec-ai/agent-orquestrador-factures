@@ -54,11 +54,10 @@ jobs:
 
       # 6. Subir los resultados como artifacts
       - name: Subir artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: datos-y-logs
           path: |
             data/02_TransformedData
             data/03_Outputs
             data/04_Logs
-          token: ${{ secrets.PAT_TOKEN }}
