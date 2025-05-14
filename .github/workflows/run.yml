@@ -32,46 +32,46 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. Verificar que los Secrets estén presentes y no vacíos
-      - name: Verificar secretos
+      # 4. Verificar que los Secrets codificados estén presentes y no vacíos
+      - name: Verificar secretos codificados
         shell: bash
         env:
-          GOOGLE_CLIENT_SECRET_JSON: ${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          CLIENT_SECRET_JSON_B64: ${{ secrets.CLIENT_SECRET_JSON_B64 }}
+          SERVICE_ACCOUNT_JSON_B64: ${{ secrets.SERVICE_ACCOUNT_JSON_B64 }}
           GMAIL_TOKEN_PICKLE_B64: ${{ secrets.GMAIL_TOKEN_PICKLE_B64 }}
         run: |
-          echo "Bytes de GOOGLE_CLIENT_SECRET_JSON: $(echo -n "$GOOGLE_CLIENT_SECRET_JSON" | wc -c)"
-          echo "Bytes de GOOGLE_SERVICE_ACCOUNT_JSON: $(echo -n "$GOOGLE_SERVICE_ACCOUNT_JSON" | wc -c)"
+          echo "Bytes de CLIENT_SECRET_JSON_B64: $(echo -n "$CLIENT_SECRET_JSON_B64" | wc -c)"
+          echo "Bytes de SERVICE_ACCOUNT_JSON_B64: $(echo -n "$SERVICE_ACCOUNT_JSON_B64" | wc -c)"
           echo "Bytes de GMAIL_TOKEN_PICKLE_B64: $(echo -n "$GMAIL_TOKEN_PICKLE_B64" | wc -c)"
-          for v in GOOGLE_CLIENT_SECRET_JSON GOOGLE_SERVICE_ACCOUNT_JSON GMAIL_TOKEN_PICKLE_B64; do
+          for v in CLIENT_SECRET_JSON_B64 SERVICE_ACCOUNT_JSON_B64 GMAIL_TOKEN_PICKLE_B64; do
             if [ -z "${!v}" ]; then
-              echo "ERROR: Secret '$v' no definido o vacío";
-              exit 1;
+              echo "ERROR: Secret '$v' no definido o vacío"
+              exit 1
             fi
           done
 
-      # 5. Reconstruir ficheros de credenciales desde los Secrets
+      # 5. Reconstruir ficheros de credenciales desde los Secrets codificados
       - name: Reconstruir client_secret.json
         run: |
-          printf '%s\n' "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > client_secret.json
+          printf '%s' "${{ secrets.CLIENT_SECRET_JSON_B64 }}" | base64 --decode > client_secret.json
 
-      - name: Reconstruir service_account.json
+      - name: Reconstruir orquestrador-459013-90b46b746190.json
         run: |
-          printf '%s\n' "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" > orquestrador-459013-90b46b746190.json
+          printf '%s' "${{ secrets.SERVICE_ACCOUNT_JSON_B64 }}" | base64 --decode > orquestrador-459013-90b46b746190.json
 
       - name: Reconstruir token.pickle de Gmail
         run: |
-          printf '%s' "${{ secrets.GMAIL_TOKEN_PICKLE_B64 }}" | tr -d '\n' | base64 -d > token.pickle
+          printf '%s' "${{ secrets.GMAIL_TOKEN_PICKLE_B64 }}" | base64 --decode > token.pickle
 
       # 6. Comprobar que los ficheros no están vacíos
       - name: Comprobar ficheros de credenciales
         run: |
-          echo "Tamaños de ficheros de credenciales:";
-          ls -lh client_secret.json orquestrador-459013-90b46b746190.json token.pickle;
+          echo "Tamaños de ficheros de credenciales:"
+          ls -lh client_secret.json orquestrador-459013-90b46b746190.json token.pickle
           for f in client_secret.json orquestrador-459013-90b46b746190.json token.pickle; do
             if [ ! -s "$f" ]; then
-              echo "ERROR: $f está vacío o no existe";
-              exit 1;
+              echo "ERROR: $f está vacío o no existe"
+              exit 1
             fi
           done
 
