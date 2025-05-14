@@ -46,6 +46,24 @@ class InvoiceOrchestrator:
         self.raw_ocr_results = []
         self.line_results = []
 
+    def _cleanup_local_pdfs(self):
+        """
+        Elimina de la carpeta local de PDFs todos los archivos que NO estén en
+        self.problem.invoices (es decir, sólo conserva los de las facturas procesadas).
+        """
+        # Ruta donde Gmail guarda los PDFs
+        pdf_folder = self.config.gmail_save_pdf_attachments_folder
+        # Rutas completas de los PDFs que sí hemos procesado
+        processed = {invoice.pdf_local_path for invoice in self.problem.invoices}
+        for fname in os.listdir(pdf_folder):
+            full_path = os.path.join(pdf_folder, fname)
+            if full_path.lower().endswith(".pdf") and full_path not in processed:
+                try:
+                    os.remove(full_path)
+                    self.logger.info(f"Eliminado PDF no procesado: {full_path}")
+                except Exception as e:
+                    self.logger.warning(f"No se pudo borrar {full_path}: {e}")
+
     def format_row(self, row: List) -> List[str]:
         """
         Formats all numeric values in a row to strings with a comma as the decimal separator.
@@ -270,4 +288,7 @@ class InvoiceOrchestrator:
         }
         self.logger.info(
             f"Returning solution with ocr_raw rows: {len(result['ocr_raw'])}, line_raw rows: {len(result['line_raw'])}")
+
+        self._cleanup_local_pdfs()
+
         return result
