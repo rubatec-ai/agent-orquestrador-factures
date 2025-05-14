@@ -37,7 +37,7 @@
         ],
         "client_secret_file": "client_secret.json",
         "gmail_token_file": "token.pickle",
-        "save_pdf_attachments_folder": "C:/temp/gmail_pdfs",
+        "save_pdf_attachments_folder": "gmail_pdfs",
         "gmail_user_email": "factura@rubatec.cat",
         "start_date": "2025-05-09",
         "label": "INBOX",

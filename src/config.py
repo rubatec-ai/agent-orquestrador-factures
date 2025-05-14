@@ -129,7 +129,16 @@ class ConfigurationManager:
         self._google_drive_folder_id = self.get_value("etl.google.drive.drive_folder_id")
         self._google_image_folder_id = self.get_value("etl.google.drive.image_folder_id")
         self._google_gmail_scopes = self.get_value("etl.google.gmail.scopes")
-        self._google_gmail_save_pdf_attachments_folder = self.get_value("etl.google.gmail.save_pdf_attachments_folder")
+
+        pdf_folder_name = self.get_value("etl.google.gmail.save_pdf_attachments_folder")
+
+        if pdf_folder_name:
+            self._google_gmail_save_pdf_attachments_folder = self._export_directory / pdf_folder_name
+            # asegúrate de que exista
+            self._google_gmail_save_pdf_attachments_folder.mkdir(parents=True, exist_ok=True)
+        else:
+            self._google_gmail_save_pdf_attachments_folder = None
+
         self._google_gmail_start_date = self.get_value("etl.google.gmail.start_date")
         self._google_gmail_label = self.get_value("etl.google.gmail.label")
 

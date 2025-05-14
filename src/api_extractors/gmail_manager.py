@@ -2,6 +2,7 @@ import logging
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
+from pathlib import Path
 from typing import Dict, Optional, Tuple
 import pandas as pd
 import base64
@@ -45,7 +46,7 @@ class GmailManager(BaseExtractor):
         self._service = build('gmail', 'v1', credentials=creds)
 
         # Carpeta para guardar los adjuntos PDF (temporal)
-        self._save_pdf_folder = config.gmail_save_pdf_attachments_folder
+        self._save_pdf_folder = Path(config.gmail_save_pdf_attachments_folder)
 
         # Parámetros de filtrado
         self._start_date = config.gmail_start_date  # e.g., "2023/06/01"
@@ -212,30 +213,36 @@ class GmailManager(BaseExtractor):
 
     def _download_pdf_attachment(self, msg_id: str, attachment_id: str, filename: str) -> Optional[Tuple[str, str]]:
         """
-        Descarga el adjunto PDF usando la API de Gmail y lo guarda en la carpeta temporal.
-        Retorna la ruta local del archivo.
+        Descarga el adjunto PDF usando la API de Gmail y lo guarda en la carpeta configurada.
+        Retorna la ruta local del archivo y su hash MD5.
         """
         if not self._save_pdf_folder:
             return None
 
         try:
+            # Obtener el adjunto desde Gmail
             attachment = self._service.users().messages().attachments().get(
                 userId='me', messageId=msg_id, id=attachment_id
             ).execute()
             data = attachment.get('data', '')
-            pdf_content = base64.urlsafe_b64decode(data.encode("UTF-8"))
+            pdf_content = base64.urlsafe_b64decode(data.encode('utf-8'))
             pdf_hash = compute_hash(pdf_content, 'md5')
 
-            # Crear la carpeta si no existe
-            os.makedirs(self._save_pdf_folder, exist_ok=True)
-            local_path = os.path.join(self._save_pdf_folder, filename)
+            # Asegurar que la carpeta existe
+            save_folder = Path(self._save_pdf_folder)
+            save_folder.mkdir(parents=True, exist_ok=True)
 
-            with open(local_path, "wb") as f:
+            # Guardar el PDF y devolver la ruta
+            local_path = save_folder / filename
+            with local_path.open('wb') as f:
                 f.write(pdf_content)
 
-            return local_path, pdf_hash
+            return str(local_path), pdf_hash
+
         except Exception as e:
-            self._logger.warning(f"Error downloading attachment {attachment_id} for message {msg_id}: {e}")
+            self._logger.warning(
+                f"Error descargando adjunto {attachment_id} del mensaje {msg_id}: {e}"
+            )
             return None
 
     def _decode_base64(self, data: str) -> str:
