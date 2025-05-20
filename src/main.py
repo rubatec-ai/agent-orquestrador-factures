@@ -72,6 +72,9 @@ class MainProcess:
         logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
         logging.getLogger("googleapiclient.discovery").setLevel(logging.WARNING)
         logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.WARNING)
+        # Añadir control para openai y httpx
+        logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
 
         return logger
 

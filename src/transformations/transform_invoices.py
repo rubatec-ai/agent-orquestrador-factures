@@ -52,8 +52,6 @@ def transform_invoices(key: str, all_inputs: Dict[str, pd.DataFrame], logger: Lo
 
     # Determine latest date in register (source of truth)
     max_register_date = register['data_recepcio'].max()
-
-    # Si es NaT o nulo, le asignamos una fecha de hace 10 años
     if pd.isna(max_register_date):
         max_register_date = pd.Timestamp.now() - pd.DateOffset(years=10)
 
@@ -62,11 +60,11 @@ def transform_invoices(key: str, all_inputs: Dict[str, pd.DataFrame], logger: Lo
     # Flag invoices arriving after last register date
     invoices['after_register'] = invoices['date_received'] > max_register_date
 
-    # 1. Compute invoice_count for each row and flag duplicates.
+    # 1. Compute invoice_count for each row and flag duplicates
     invoices['invoice_count'] = invoices.groupby('hash')['hash'].transform('count')
     invoices['duplicated'] = invoices['invoice_count'] > 1
 
-    # 2. For each hash, compute the latest date_received.
+    # 2. For each hash, compute the latest date_received
     invoices['latest_date'] = invoices.groupby('hash')['date_received'].transform('max')
     invoices['is_latest'] = invoices['date_received'] == invoices['latest_date']
 
@@ -78,7 +76,7 @@ def transform_invoices(key: str, all_inputs: Dict[str, pd.DataFrame], logger: Lo
     )
     invoices['common_invoice'] = invoices['hash'].isin(register_hashes)
 
-    # 4. Aggregate Gmail duplicate info for filename variations.
+    # 4. Aggregate Gmail duplicate info for filename variations
     duplicates_info = (
         invoices.groupby('hash')
         .agg(
@@ -96,7 +94,7 @@ def transform_invoices(key: str, all_inputs: Dict[str, pd.DataFrame], logger: Lo
         on='hash', how='left'
     )
 
-    # 5. (Bonus) Check common invoices between Gmail and Drive for filename mismatches.
+    # 5. (Bonus) Check common invoices between Gmail and Drive for filename mismatches
     drive_hashes = set(files['md5Checksum'].dropna())
     common_invoices_gmail = invoices[invoices['common_invoice']][['hash', 'filename']]
     common_invoices_drive = files[files['md5Checksum'].isin(drive_hashes)][
@@ -114,45 +112,25 @@ def transform_invoices(key: str, all_inputs: Dict[str, pd.DataFrame], logger: Lo
 
     # Log summary details
     total_gmail = len(invoices)
-    total_register = len(register)
-    total_drive = len(files)
     total_unique_gmail = len(gmail_hashes)
     total_new = invoices[invoices['is_latest'] & invoices['new_invoice']]['new_invoice'].sum()
-    total_common = invoices[invoices['is_latest'] & invoices['common_invoice']]['common_invoice'].sum()
-    total_dup_common = duplicates_info.loc[
-        duplicates_info['hash'].isin(gmail_hashes & drive_hashes), 'count'
-    ].sum()
 
     logger.debug(f"Total invoices in Gmail: {total_gmail}")
-    logger.debug(f"Total files in Register: {total_register}")
-    logger.debug(f"Total files in Drive: {total_drive}")
     logger.debug(f"Unique invoices in Gmail (by hash): {total_unique_gmail}")
-    logger.debug(f"New invoices (latest & not in register) [latest only]: {total_new}")
-    logger.debug(f"Common invoices already in register [latest only]: {total_common}")
-    logger.debug(f"Total duplicate rows in common invoices (Gmail): {total_dup_common}")
+    logger.debug(f"New invoices to be processed (latest & not in register): {total_new}")
 
-    # Detailed logging for missing and mismatched
-    missing_invoices = invoices[invoices['is_latest'] & (~invoices['new_invoice'])]
-    if not missing_invoices.empty:
-        logger.debug("Invoices (latest records) that are common (i.e. not new):")
+    # Detailed logging for new invoices
+    new_invoices = invoices[invoices['is_latest'] & invoices['new_invoice']]
+    if not new_invoices.empty:
+        logger.debug("New invoices to be processed:")
         separator = "-" * 80
         logger.debug(separator)
         logger.debug(f"{'Hash':<40} {'Filename':<30} {'Received Date'}")
         logger.debug(separator)
-        for _, row in missing_invoices.iterrows():
+        for _, row in new_invoices.iterrows():
             logger.debug(f"{row['hash']:<40} {row['filename']:<30} {row['date_received']}")
         logger.debug(separator)
-
-    if not merged_common[diff_filename_between].empty:
-        logger.debug("Common invoices with differing filenames between Gmail and Drive:")
-        separator = "-" * 102
-        logger.debug(separator)
-        logger.debug(f"{'Hash':<40} {'Gmail Filename':<30} {'Drive Filename':<30} {'Relative Path'}")
-        logger.debug(separator)
-        for _, row in merged_common[diff_filename_between].iterrows():
-            logger.debug(
-                f"{row['hash']:<40} {row['filename_gmail']:<30} {row['filename_drive']:<30} {row['relative_path']}"
-            )
-        logger.debug(separator)
+    else:
+        logger.debug("No new invoices to process.")
 
     return invoices

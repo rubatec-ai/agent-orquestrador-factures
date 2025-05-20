@@ -1,7 +1,6 @@
 import logging
 from typing import Dict, Optional, List
 import pandas as pd
-from logging import Logger
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -69,15 +68,13 @@ class GoogleSheetsManager(BaseExtractor):
                         df[col] = pd.to_datetime(
                             df[col],
                             errors='coerce',
-                            dayfirst=True,
-                            format='%d/%m/%Y'
+                            dayfirst=True
                         ).dt.date
                     elif dtype == 'datetime':
                         df[col] = pd.to_datetime(
                             df[col],
                             errors='coerce',
-                            dayfirst=True,
-                            format='%d/%m/%Y %H:%M:%S'
+                            dayfirst=True
                         ).dt.strftime('%Y-%m-%d %H:%M:%S')
                     else:
                         df[col] = df[col].astype(dtype, errors='ignore')

@@ -74,7 +74,7 @@ class DriveManager(BaseExtractor):
         try:
             self._logger.debug(f"Recorriendo recursivamente el folder base: {self._folder_id}")
             pdf_files = self._list_files_recursive(self._folder_id, current_path="")
-            self._logger.info(f"Encontrados {len(pdf_files)} archivos PDF en el folder y subfolders.")
+            self._logger.info(f"Encontrados {len(pdf_files)} archivos PDF en el folder del Drive.")
             df = pd.DataFrame(pdf_files)
             return {"files": df}
         except Exception as e:

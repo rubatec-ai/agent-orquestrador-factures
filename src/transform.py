@@ -45,6 +45,8 @@ class Transformer:
             Dict[str, pd.DataFrame]: The resulting data model as a dictionary of DataFrames.
         """
         self._logger.info("Starting transformations on clean inputs.")
+        self._logger.debug(f"Input tables available: {list(self._clean_inputs.keys())}")
+        self._logger.debug(f"Available transformations: {list(self._transformations.keys())}")
 
         self._data_model = {
             key: self._transformations.get(key, transform_default)(
@@ -52,7 +54,6 @@ class Transformer:
             )
             for key, _ in self._clean_inputs.items()
         }
-
         self._logger.info("Transformations completed.")
         return self._data_model
 
