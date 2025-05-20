@@ -60,7 +60,7 @@ class InvoiceOrchestrator:
             if full_path.lower().endswith(".pdf") and full_path not in processed:
                 try:
                     os.remove(full_path)
-                    self.logger.info(f"Eliminado PDF no procesado: {full_path}")
+                    #self.logger.info(f"Eliminado PDF no procesado: {full_path}")
                 except Exception as e:
                     self.logger.warning(f"No se pudo borrar {full_path}: {e}")
 
@@ -105,7 +105,6 @@ class InvoiceOrchestrator:
                 ocr_extractor=self.ocr_extractor,
                 openai_extractor=self.openai_extractor
             )
-            self.logger.debug(f"OCR data extracted for {invoice.invoice_filename}: {ocr_data}")
 
             # Update invoice fields
             invoice.fr_proveedor = get_field(ocr_data, ocr_key='invoice_id', openai_key='fr_proveedor')
@@ -129,12 +128,11 @@ class InvoiceOrchestrator:
 
             # Extract line items
             invoice.line_items = ocr_data.get("line_item", [{}])[0] if ocr_data.get("line_item") else {}
-            self.logger.debug(f"Line items for {invoice.invoice_filename}: {invoice.line_items}")
 
             # Store raw OCR data for later review
             raw_ocr_entry = {'invoice_hash': invoice.invoice_hash, **ocr_data}
             self.raw_ocr_results.append(raw_ocr_entry)
-            self.logger.info(f"Added to raw_ocr_results: {len(self.raw_ocr_results)} items")
+            self.logger.info(f"Added entry to raw_ocr_results.")
 
             # Build and validate line item
             if self.is_valid_line_item(invoice.line_items):
@@ -151,7 +149,7 @@ class InvoiceOrchestrator:
                     'marca_temporal': invoice.marca_temporal_ocr
                 }
                 self.line_results.append(line_item)
-                self.logger.info(f"Added to line_results: {len(self.line_results)} items")
+                self.logger.info(f"Added entry to line_results")
             else:
                 self.logger.debug(
                     f"Line item skipped for {invoice.invoice_filename}: insufficient data or no description")
@@ -171,10 +169,6 @@ class InvoiceOrchestrator:
                 self.logger.info(f"Notification email sent, message ID: {sent_message.get('id', 'N/A')}")
 
             # Upload PDF to Google Drive
-
-            #canal = invoice.canal_sie if invoice.canal_sie else "desconocido"
-            #target_relative_path = canal if re.fullmatch(r"\d{4}", canal) else "desconocido"
-
             file_metadata = self.drive_manager.upload_pdf(
                 invoice.pdf_local_path,
                 target_relative_path=None
