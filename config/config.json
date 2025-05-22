@@ -39,7 +39,7 @@
         "gmail_token_file": "token.pickle",
         "save_pdf_attachments_folder": "gmail_pdfs",
         "gmail_user_email": "factura@rubatec.cat",
-        "start_date": "2025-05-19",
+        "start_date": "2025-05-22",
         "label": "INBOX",
         "auto_claim_canal": false
       },

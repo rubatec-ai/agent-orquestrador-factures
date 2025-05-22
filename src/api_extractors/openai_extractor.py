@@ -2,13 +2,17 @@ import logging
 import json
 import openai
 from typing import Dict, Any, Optional
-from src.utils.constants import SYSTEM_PROMPT_ANALYSIS, MODELS_COST, PARAMETERS_TO_SEARCH, PROMPT_TASK
+from src.utils.constants import SYSTEM_PROMPT_ANALYSIS, MODELS_COST, PARAMETERS_TO_SEARCH, PROMPT_TASK, VALID_CANAL_SIE, \
+    PROMPT_SIE
+
 
 class AIExtractor:
     """
     Responsable de interactuar con la API de OpenAI.
     """
-    def __init__(self, model: str, api_key: str, logger: logging.Logger, temperature: float = 0.2, max_tokens: int = 100):
+
+    def __init__(self, model: str, api_key: str, logger: logging.Logger, temperature: float = 0.2,
+                 max_tokens: int = 100):
         self.model = model
         self.api_key = api_key
         self.temperature = temperature
@@ -17,7 +21,7 @@ class AIExtractor:
         self.logger = logger
         self.client = openai.OpenAI(api_key=self.api_key)
 
-    def extract_edge_case(self, pdf_text: str, ocr_extracted_data: Dict[str, Any]):
+    def extract_edge_case(self, image_data_url: str, ocr_extracted_data: Dict[str, Any]):
         """
         Extrae los campos definidos a partir del texto del PDF y retorna un diccionario.
         """
@@ -38,21 +42,44 @@ class AIExtractor:
             "----------------------------------------------\n"
             f"Preliminary results from the OCR: {str(ocr_extracted_data)}\n"
             "----------------------------------------------\n"
-            f"Pdf content:\n{pdf_text}\n"
-            "----------------------------------------------\n"
         )
-
-        response = self.call_openai_api(dynamic_prompt)
-        output_text = response.get("output", "")[0].get("content", "")[0].get("text", "")
-
+        # First call: extract all parameters
+        response = self.call_openai_api(prompt=dynamic_prompt, image_data_url=image_data_url, flag_fallback=False)
+        output_text = response.choices[0].message.content
         try:
             result = json.loads(output_text)
-            return result
         except json.JSONDecodeError as e:
             self.logger.error(f"Error decodificando JSON de la respuesta de OpenAI: {e}")
             return {"edge_case_raw": output_text}
+        # Check and refine canal_sie if necessary
+        sie_value = result.get("canal_sie", "").strip()
+        if sie_value not in VALID_CANAL_SIE:
+            self.logger.info(f"Refining canal_sie: '{sie_value}' ...")
 
-    def call_openai_api(self, prompt: str) -> Dict[str, Any]:
+            # Provide mapping as additional context in the prompt
+            prompt_sie = (
+                "#### Task ####\n"
+                f"{PROMPT_SIE}\n"
+            )
+
+            try:
+                response_fall_back = self.call_openai_api(prompt=prompt_sie, image_data_url=image_data_url,
+                                                          flag_fallback=True)
+                output_fall_back = response_fall_back.choices[0].message.content
+                sie_json = json.loads(output_fall_back)
+                refined = sie_json.get("canal_sie", sie_value)
+
+                self.logger.info(f"The refined canal_sie is '{refined}' ...")
+                if refined in VALID_CANAL_SIE:
+                    result["canal_sie"] = refined
+                else:
+                    self.logger.warning(f"Refined canal_sie '{refined}' not in valid list")
+                    result["canal_sie"] = "desconocido"
+            except Exception as e:
+                self.logger.warning(f"Failed to refine canal_sie: {e}")
+        return result
+
+    def call_openai_api(self, prompt: str, image_data_url: str, flag_fallback: bool) -> Any:
         """
         Envía un prompt a la API de OpenAI y retorna la respuesta utilizando Structured Outputs.
         """
@@ -60,36 +87,22 @@ class AIExtractor:
             self.logger.info("Enviando petición a la API de OpenAI.")
 
             # Generamos un schema dinámico a partir de los parámetros a buscar.
-            schema = {
-                "type": "object",
-                "properties": {key: {"type": "string"} for key in PARAMETERS_TO_SEARCH.keys()},
-                "required": list(PARAMETERS_TO_SEARCH.keys()),
-                "additionalProperties": False
-            }
 
-            response = self.client.responses.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
-                input=[
+                messages=[
                     {"role": "system", "content": SYSTEM_PROMPT_ANALYSIS},
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": [{"type": "text", "text": prompt},
+                                                 {"type": "image_url", "image_url": {"url": image_data_url}}]}
                 ],
-                text={
-                    "format": {
-                        "type": "json_schema",
-                        "name": "edge_case",
-                        "schema": schema,
-                        "strict": True
-                    }
-                }
+                response_format={"type": "json_object"}
             )
 
-            response_dict: Dict[str, Any] = response.to_dict()
-
             # Extraer detalles de uso para calcular el coste
-            usage: Dict[str, int] = response_dict.get("usage", {})
-            input_tokens = usage.get("input_tokens", 0)
-            cached_tokens = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
-            output_tokens = usage.get("output_tokens", 0)
+            usage = response.usage
+            input_tokens = usage.prompt_tokens
+            cached_tokens = usage.prompt_tokens_details.cached_tokens
+            output_tokens = usage.completion_tokens
             self.total_cost += self.calculate_cost(
                 model=self.model,
                 input_tokens=input_tokens,
@@ -97,7 +110,7 @@ class AIExtractor:
                 output_tokens=output_tokens
             )
 
-            return response_dict
+            return response
 
         except openai.APIConnectionError as e:
             self.logger.error(f"Error de conexión: {e}")
@@ -124,11 +137,10 @@ class AIExtractor:
         cost_cached_input = MODELS_COST[model].get("cached_input") or 0.0
 
         total_cost = (input_tokens * cost_input) + (cached_input_tokens * cost_cached_input) + (
-                    output_tokens * cost_output)
+                output_tokens * cost_output)
 
         self.logger.info(
             f"Modelo: {model}, Tokens de entrada: {input_tokens}, Tokens de entrada cacheada: {cached_input_tokens}, "
             f"Tokens de salida: {output_tokens}, Coste: ${total_cost:.6f}"
         )
         return total_cost
-

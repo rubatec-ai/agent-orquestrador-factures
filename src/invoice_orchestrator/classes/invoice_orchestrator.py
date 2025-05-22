@@ -15,7 +15,7 @@ from src.invoice_orchestrator.classes.invoice import Invoice
 from src.invoice_orchestrator.classes.problem import InvoiceProblem
 from src.invoice_orchestrator.utils.utils import get_field
 from src.utils.constants import CRITICAL_FIELDS_LINE_ITEMS, EXTRACTED_DATA_INVOICE_PARSER, EXTRACTED_DATA_OPENAI, \
-    INVALID_CANAL_SIE_VALUES, EMAIL_INVALID_CANAL_SUBJECT, EMAIL_INVALID_CANAL_BODY
+     EMAIL_INVALID_CANAL_SUBJECT, EMAIL_INVALID_CANAL_BODY, VALID_CANAL_SIE
 from src.utils.utils import parse_currency
 
 
@@ -110,7 +110,7 @@ class InvoiceOrchestrator:
             invoice.fr_proveedor = get_field(ocr_data, ocr_key='invoice_id', openai_key='fr_proveedor')
             invoice.name_proveedor = get_field(ocr_data, ocr_key= 'supplier_name', openai_key= 'proveedor')
             invoice.id_proveedor = get_field(ocr_data, ocr_key= 'supplier_tax_id', openai_key= 'supplier_id')
-            invoice.canal_sie = ("desconocido" if ocr_data.get("canal_sie") in INVALID_CANAL_SIE_VALUES
+            invoice.canal_sie = ("desconocido" if ocr_data.get("canal_sie") not in VALID_CANAL_SIE
                                  else str(ocr_data.get("canal_sie", "")))
             invoice.base = parse_currency(ocr_data.get("net_amount", ""))
             invoice.iva_eur = parse_currency(ocr_data.get("total_tax_amount", ""))

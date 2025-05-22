@@ -1,10 +1,13 @@
+import base64
 import os
 import logging
 from datetime import datetime
 
 from google.oauth2 import service_account
 from google.cloud import documentai_v1 as documentai
-import re
+import io
+
+from pdf2image import convert_from_path
 
 from src.api_extractors.openai_extractor import AIExtractor
 from src.config import ConfigurationManager
@@ -43,6 +46,30 @@ class GoogleOCRExtractor:
         return documentai.DocumentProcessorServiceClient(
             credentials=credentials, client_options=client_options
         )
+
+    def generate_image_data_url(self, pdf_path: str) -> str:
+        """
+        Generates a PNG image from the first page of the PDF and returns a base64-encoded data URL.
+
+        Args:
+            pdf_path: Path to the PDF file.
+
+        Returns:
+            str: Data URL in the format "data:image/png;base64,<base64_string>" or empty string if failed.
+        """
+        try:
+            images = convert_from_path(pdf_path, first_page=1, last_page=1)
+            image = images[0]
+            buffer = io.BytesIO()
+            image.save(buffer, format='PNG')
+            image_bytes = buffer.getvalue()
+            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+            data_url = f"data:image/png;base64,{base64_image}"
+            self._logger.info(f"Generated image data URL for {pdf_path}")
+            return data_url
+        except Exception as e:
+            self._logger.error(f"Error generating image for {pdf_path}: {e}")
+            return ""
 
     def _process_document_invoice_parser(self, pdf_path: str) -> dict:
         """
@@ -145,9 +172,14 @@ class GoogleOCRExtractor:
 
     def process_invoice(self, pdf_path: str, openai_extractor: AIExtractor) -> dict:
         """
-        Procesa el PDF de una factura para extraer datos mediante Document AI y
-        realiza procesamiento adicional con OpenAI si es necesario.
-        Combina la extracción de Document AI y OpenAI en un solo diccionario.
+        Processes a PDF invoice to extract data using Document AI and OpenAI with an image.
+
+        Args:
+            pdf_path: Path to the PDF file.
+            openai_extractor: Instance of AIExtractor for additional processing.
+
+        Returns:
+            dict: Combined extracted data from Document AI and OpenAI.
         """
         self._logger.info(f"Processing invoice: {pdf_path}")
 
@@ -161,20 +193,23 @@ class GoogleOCRExtractor:
         # Obtener el texto extraído por Document AI
         pdf_text = data_invoice_parser.get("text", "")
 
+        # Paso 2: Generar URL de datos de la imagen
+        image_data_url = self.generate_image_data_url(pdf_path)
+
         # Verificar si hay datos suficientes para continuar
-        if not pdf_text and not data_invoice_parser:
-            self._logger.warning("No se pudo extraer texto ni datos estructurados. Finalizando procesamiento.")
+        if not pdf_text and not data_invoice_parser and not image_data_url:
+            self._logger.warning("No text, structured data, or image extracted. Finalizing processing.")
             return {"marca_temporal_ocr": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
-        # Paso 2: Preparar datos para OpenAI
+        # Paso 3: Preparar datos para OpenAI
         fields_openai = ['supplier_email', 'supplier_website']
         ocr_hints = {key: data_invoice_parser.get(key) for key in fields_openai if key in data_invoice_parser}
 
-        # Paso 3: Extraer datos adicionales con OpenAI (si es necesario)
-        if pdf_text:
+        # Paso 4: Extraer datos adicionales con OpenAI usando la imagen
+        if image_data_url:
             try:
                 openai_invoice_fields = openai_extractor.extract_edge_case(
-                    pdf_text=pdf_text,
+                    image_data_url=image_data_url,
                     ocr_extracted_data=ocr_hints
                 )
             except Exception as e:
@@ -184,32 +219,8 @@ class GoogleOCRExtractor:
             self._logger.warning("No hay datos suficientes para OpenAI. Saltando este paso.")
             openai_invoice_fields = DEFAULT_PARAMETERS_TO_SEARCH
 
-        # Paso 4: Combinar ambos diccionarios
+        # Paso 5: Combinar ambos diccionarios
         ocr_data = {**data_invoice_parser, **openai_invoice_fields,
                     "marca_temporal_ocr": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
         return ocr_data
-
-    @staticmethod
-    def extract_canal_sie(text):
-        # Normalizamos el texto
-        text = text.lower()
-
-        # Palabras clave permitidas cerca del número
-        keywords = ['sie', 'canal', 'contrato']
-
-        # Expresión regular: palabra clave cerca de un número de 4 dígitos
-        pattern = r"(sie|canal|contrato)[^\\d\\n]{0,20}?(\\b\\d{4}\\b)|" \
-                  r"(\\b\\d{4}\\b)[^\\d\\n]{0,20}?(sie|canal|contrato)"
-
-        matches = re.findall(pattern, text, flags=re.IGNORECASE)
-
-        if matches:
-            # Encuentra el primer número válido asociado a palabra clave
-            for match in matches:
-                # Flatten y filtra los grupos vacíos
-                possible_codes = [m for m in match if m and m.strip().isdigit()]
-                for code in possible_codes:
-                    if len(code) == 4:
-                        return code
-        return "desconocido"
