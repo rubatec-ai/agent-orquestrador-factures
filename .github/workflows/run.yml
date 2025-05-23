@@ -2,8 +2,8 @@ name: Ejecutar cada 2 horas
 
 on:
   schedule:
-    # A las 05:55, 07:55, …, 23:55 UTC
-    - cron: '55 5-23/2 * * *'
+    # A las 05:55, 07:55, …, 23:55 hora España (CEST UTC+2)
+    - cron: '55 3-21/2 * * *'
   workflow_dispatch:
 
 permissions:

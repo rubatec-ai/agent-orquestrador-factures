@@ -140,6 +140,8 @@ class ConfigurationManager:
             self._google_gmail_save_pdf_attachments_folder = None
 
         self._google_gmail_start_date = self.get_value("etl.google.gmail.start_date")
+        self._google_gmail_only_last_hours = self.get_value("etl.google.gmail.only_last_hours")
+        self._google_gmail_processed_label = self.get_value("etl.google.gmail.processed_label")
         self._google_gmail_label = self.get_value("etl.google.gmail.label")
 
         self._auto_claim_canal = self.get_value("etl.google.gmail.auto_claim_canal")
@@ -285,8 +287,16 @@ class ConfigurationManager:
         return self._google_gmail_start_date
 
     @property
+    def gmail_only_last_hours(self):
+        return self._google_gmail_only_last_hours
+
+    @property
     def gmail_label(self):
         return self._google_gmail_label
+
+    @property
+    def gmail_processed_label(self):
+        return self._google_gmail_processed_label
 
     @property
     def auto_claim_canal(self):

@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta, datetime
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -120,19 +121,16 @@ class GmailManager(BaseExtractor):
                     date_received = ""
                     sender = ""
                     for h in headers:
-                        header_name = h.get("name", "").lower()
-                        if header_name == "subject":
+                        name = h.get("name", "").lower()
+                        if name == "subject":
                             subject = h.get("value", "")
-                        elif header_name == "date":
-                            raw_date_str = h.get("value", "")
-                            date_received = self._parse_date(raw_date_str)
-                        elif header_name == "from":
+                        elif name == "date":
+                            date_received = self._parse_date(h.get("value", ""))
+                        elif name == "from":
                             sender = h.get("value", "")
 
-                    # Extraer cuerpo usando una función recursiva
                     body = self._extract_body(msg)
 
-                    # Agregar información al master de mensajes
                     messages_data.append({
                         "message_id": msg_id,
                         "thread_id": thread_id,
@@ -142,34 +140,58 @@ class GmailManager(BaseExtractor):
                         "body": body
                     })
 
-                    # Procesar adjuntos: se crea una fila por cada PDF adjunto.
                     parts = msg.get("payload", {}).get("parts", [])
-                    if parts:
-                        for part in parts:
-                            filename = part.get("filename", "")
-                            if filename and filename.lower().endswith(".pdf"):
-                                attachment_id = part.get("body", {}).get("attachmentId", "")
-                                local_path, hash_invoice = self._download_pdf_attachment(msg_id, attachment_id,filename)
-                                attachments_data.append({
-                                    "message_id": msg_id,
-                                    "thread_id": thread_id,
-                                    "subject": subject,
-                                    "date_received": date_received,
-                                    "sender": sender,
-                                    "attachment_id": attachment_id,
-                                    "filename": filename,
-                                    "pdf_local_path": local_path,
-                                    "hash": hash_invoice
-                                })
-                    # En caso de que no exista "parts", se puede tener el cuerpo directo y sin adjuntos.
+                    for part in parts:
+                        filename = part.get("filename", "")
+                        if filename and filename.lower().endswith(".pdf"):
+                            attachment_id = part.get("body", {}).get("attachmentId", "")
+                            local_path, hash_invoice = self._download_pdf_attachment(
+                                msg_id, attachment_id, filename
+                            )
+                            attachments_data.append({
+                                "message_id": msg_id,
+                                "thread_id": thread_id,
+                                "subject": subject,
+                                "date_received": date_received,
+                                "sender": sender,
+                                "attachment_id": attachment_id,
+                                "filename": filename,
+                                "pdf_local_path": local_path,
+                                "hash": hash_invoice
+                            })
 
             df_messages = pd.DataFrame(messages_data)
             df_messages.sort_values(by=['date_received'], ascending=True, inplace=True)
             df_attachments = pd.DataFrame(attachments_data)
-            # Retornamos ambos dataframes; luego se pueden limpiar o asignar en clean_input_data según convenga.
-            return {"messages": df_messages, "invoices": df_attachments}
+
+            if self._config.gmail_only_last_hours:
+                # 1) Hora actual consciente de zona
+                now = datetime.now(pytz.timezone("Europe/Madrid"))
+                # 2) Calculamos el cutoff por lookback
+                cutoff = now - timedelta(hours=self._config.gmail_only_last_hours)
+                # 3) Hacemos aware las columnas de fecha para comparar
+                df_attachments['date_dt'] = (
+                    pd.to_datetime(df_attachments['date_received'])
+                    .dt.tz_localize("Europe/Madrid")
+                )
+                df_messages['date_dt'] = (
+                    pd.to_datetime(df_messages['date_received'])
+                    .dt.tz_localize("Europe/Madrid")
+                )
+
+                df_attachments = df_attachments[df_attachments['date_dt'] >= cutoff]
+                df_messages = df_messages[df_messages['date_dt'] >= cutoff]
+
+                df_attachments.drop(columns=['date_dt'], inplace=True)
+                df_messages.drop(columns=['date_dt'], inplace=True)
+
+            return {
+                "messages": df_messages.sort_values(by=['date_received'], ascending=False),
+                "invoices": df_attachments.sort_values(by=['date_received'], ascending=False)
+            }
+
         except Exception as e:
-            raise Exception(f"Failed to fetch Gmail data: {str(e)}")
+            raise Exception(f"Failed to fetch Gmail data: {e}")
 
     def clean_input_data(self):
         """
@@ -308,3 +330,18 @@ class GmailManager(BaseExtractor):
         # Enviar el mensaje usando la API de Gmail
         sent_message = self._service.users().messages().send(userId='me', body=message_body).execute()
         return sent_message
+
+    def mark_thread_processed(self, thread_id: str, label_id: str = None):
+        """
+        Quita 'UNREAD' y añade la etiqueta label_id al hilo.
+        """
+
+        mods = {'removeLabelIds': ['UNREAD'],'addLabelIds': []}
+
+        if label_id:
+                mods['addLabelIds'].append(label_id)
+        self._service.users().threads().modify(
+            userId = 'me',
+            id = thread_id,
+            body = mods
+        ).execute()

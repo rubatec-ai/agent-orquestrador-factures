@@ -23,7 +23,7 @@ class InvoiceProblem:
         """
 
         invoices = data_model['invoices'].copy()
-        new_invoices_df = invoices[(invoices['new_invoice'] == True)&(invoices['is_latest'] == True)]
+        new_invoices_df = invoices[(invoices['new_invoice'] == True)&(invoices['is_earliest'] == True)]
 
         # Use itertuples for performance; convert each row to a dictionary.
         self.invoices: List[Invoice] = [Invoice(row._asdict()) for row in new_invoices_df.itertuples(index=False)]

@@ -46,14 +46,15 @@ def transform_invoices(key: str, all_inputs: Dict[str, pd.DataFrame], logger: Lo
 
     # Convert date columns to datetime
     invoices['date_received'] = pd.to_datetime(invoices['date_received'], errors='coerce')
+    register['data_recepcio'] = pd.to_datetime(register['data_recepcio'], errors='coerce')
     files['modified_time'] = pd.to_datetime(files['modified_time'], errors='coerce')
     files['created_time'] = pd.to_datetime(files['created_time'], errors='coerce')
-    register['data_recepcio'] = pd.to_datetime(register['data_recepcio'], errors='coerce')
+
 
     # Determine latest date in register (source of truth)
     max_register_date = register['data_recepcio'].max()
     if pd.isna(max_register_date):
-        max_register_date = pd.Timestamp.now() - pd.DateOffset(years=10)
+        max_register_date = pd.Timestamp.now() - pd.DateOffset(years=42)
 
     logger.debug(f"Max register reception date: {max_register_date}")
 
@@ -64,15 +65,18 @@ def transform_invoices(key: str, all_inputs: Dict[str, pd.DataFrame], logger: Lo
     invoices['invoice_count'] = invoices.groupby('hash')['hash'].transform('count')
     invoices['duplicated'] = invoices['invoice_count'] > 1
 
-    # 2. For each hash, compute the latest date_received
+    # 2. For each hash, compute meaningful dates
     invoices['latest_date'] = invoices.groupby('hash')['date_received'].transform('max')
     invoices['is_latest'] = invoices['date_received'] == invoices['latest_date']
+
+    invoices['earliest_date'] = invoices.groupby('hash')['date_received'].transform('min')
+    invoices['is_earliest'] = invoices['date_received'] == invoices['earliest_date']
 
     # 3. Determine new vs common invoices based on register
     gmail_hashes = set(invoices['hash'].dropna())
     register_hashes = set(register['md5Checksum'].dropna())
     invoices['new_invoice'] = invoices.apply(
-        lambda r: (r['hash'] not in register_hashes) and r['after_register'], axis=1
+        lambda r: (r['hash'] not in register_hashes), axis=1
     )
     invoices['common_invoice'] = invoices['hash'].isin(register_hashes)
 
@@ -113,14 +117,14 @@ def transform_invoices(key: str, all_inputs: Dict[str, pd.DataFrame], logger: Lo
     # Log summary details
     total_gmail = len(invoices)
     total_unique_gmail = len(gmail_hashes)
-    total_new = invoices[invoices['is_latest'] & invoices['new_invoice']]['new_invoice'].sum()
+    total_new = invoices[invoices['is_earliest'] & invoices['new_invoice']]['new_invoice'].sum()
 
     logger.debug(f"Total invoices in Gmail: {total_gmail}")
     logger.debug(f"Unique invoices in Gmail (by hash): {total_unique_gmail}")
-    logger.debug(f"New invoices to be processed (latest & not in register): {total_new}")
+    logger.debug(f"New invoices to be processed (earliest  & not in register): {total_new}")
 
     # Detailed logging for new invoices
-    new_invoices = invoices[invoices['is_latest'] & invoices['new_invoice']]
+    new_invoices = invoices[invoices['is_earliest'] & invoices['new_invoice']]
     if not new_invoices.empty:
         logger.debug("New invoices to be processed:")
         separator = "-" * 80

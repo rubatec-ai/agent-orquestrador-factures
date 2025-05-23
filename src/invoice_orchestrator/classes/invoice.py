@@ -18,7 +18,9 @@ class Invoice:
         self.sender = row.get('sender')
         self.invoice_filename = row.get('filename')
         self.pdf_local_path = row.get('pdf_local_path')
+        self.thread_id = row.get('thread_id')
         self.is_latest = row.get('is_latest')
+        self.is_earliest = row.get('is_earliest')
 
         # Campos que se rellenarán con OCR y OpenAI
         self.fr_proveedor = None

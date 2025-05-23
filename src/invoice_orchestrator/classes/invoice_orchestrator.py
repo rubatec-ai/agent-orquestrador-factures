@@ -271,6 +271,17 @@ class InvoiceOrchestrator:
         # Write data to Google Sheets
         self.write_to_sheets()
 
+        # Marcar en Gmail los hilos como procesados
+        """
+        for invoice in self.problem.invoices:
+            try:
+                self.gmail_manager.mark_thread_processed(
+                    invoice.thread_id,
+                    self.config.gmail_processed_label
+                )
+            except Exception as e:
+                self.logger.warning(f"No pude marcar hilo {invoice.thread_id}: {e}")
+        """
         # Log final state
         self.logger.info(f"Final raw_ocr_results size: {len(self.raw_ocr_results)}")
         self.logger.info(f"Final line_results size: {len(self.line_results)}")
